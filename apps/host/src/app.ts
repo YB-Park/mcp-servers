@@ -33,7 +33,7 @@ function isLoopback(host: string): boolean {
 
 function normalizeRequestMethod(req: IncomingMessage): ValidatableRequest | undefined {
   // Node's IncomingMessage types allow an absent method, while real inbound HTTP
-  // server requests should always carry one and MCP's node middleware requires it.
+  // server requests should always carry one and MCP's node adapter requires it.
   // Reject malformed requests here rather than weakening strict TypeScript settings.
   if (!req.method) {
     return undefined;
@@ -112,7 +112,7 @@ export function createMcpHost(options: HostOptions): HttpServer {
       return;
     }
 
-    void handler(req, res);
+    void handler(validatableRequest, res);
   });
 }
 
