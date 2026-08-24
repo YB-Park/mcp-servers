@@ -61,17 +61,20 @@ jobs:
       - name: Explore MCP 2026-07-28 conformance
         continue-on-error: true
         run: |
+          rm -rf /tmp/conformance-results
+          mkdir -p /tmp/conformance-results
           npx --yes @modelcontextprotocol/conformance@0.2.0-alpha.11 server \
             --url http://127.0.0.1:3000/mcp/example \
             --suite all \
             --spec-version 2026-07-28 \
+            --output-dir /tmp/conformance-results \
             --verbose
       - name: Upload conformance evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: conformance-2026-explore
-          path: results
+          path: /tmp/conformance-results
           retention-days: 1
       - name: Show host log
         if: always()
