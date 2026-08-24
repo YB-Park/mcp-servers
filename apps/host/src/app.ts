@@ -1,4 +1,4 @@
-import { createServer, type Server as HttpServer } from 'node:http';
+import { createServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { ServerDefinition } from '@mcp-platform/mcp-kit';
 import { createServerHandler, ServerRegistry } from '@mcp-platform/runtime';
@@ -25,8 +25,20 @@ export interface RunningHost {
   close(): Promise<void>;
 }
 
+type ValidatableRequest = IncomingMessage & { method: string };
+
 function isLoopback(host: string): boolean {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
+
+function normalizeRequestMethod(req: IncomingMessage): ValidatableRequest | undefined {
+  // Node's IncomingMessage types allow an absent method, while real inbound HTTP
+  // server requests should always carry one and MCP's node middleware requires it.
+  // Reject malformed requests here rather than weakening strict TypeScript settings.
+  if (!req.method) {
+    return undefined;
+  }
+  return req as ValidatableRequest;
 }
 
 export function createMcpHost(options: HostOptions): HttpServer {
@@ -56,8 +68,16 @@ export function createMcpHost(options: HostOptions): HttpServer {
   }
 
   return createServer((req, res) => {
-    if (!validateHost(req, res)) return;
-    if (validateOrigin && !validateOrigin(req, res)) return;
+    const validatableRequest = normalizeRequestMethod(req);
+    if (!validatableRequest) {
+      res.statusCode = 400;
+      res.setHeader('content-type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'invalid_http_request' }));
+      return;
+    }
+
+    if (!validateHost(validatableRequest, res)) return;
+    if (validateOrigin && !validateOrigin(validatableRequest, res)) return;
 
     const pathname = new URL(req.url ?? '/', 'http://mcp.local').pathname;
 
