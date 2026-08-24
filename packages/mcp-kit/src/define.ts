@@ -1,4 +1,5 @@
 import type {
+  ObjectSchema,
   PromptDefinition,
   ResourceDefinition,
   ServerDefinition,
@@ -19,7 +20,9 @@ function assertUnique(kind: string, names: readonly string[]): void {
   }
 }
 
-export function defineTool(definition: ToolDefinition): ToolDefinition {
+export function defineTool<TInputSchema extends ObjectSchema>(
+  definition: ToolDefinition<TInputSchema>,
+): ToolDefinition<TInputSchema> {
   if (!CAPABILITY_NAME.test(definition.name)) {
     throw new Error(`Invalid tool name: ${definition.name}`);
   }
@@ -37,7 +40,9 @@ export function defineResource(definition: ResourceDefinition): ResourceDefiniti
   return Object.freeze({ ...definition });
 }
 
-export function definePrompt(definition: PromptDefinition): PromptDefinition {
+export function definePrompt<TArgsSchema extends ObjectSchema>(
+  definition: PromptDefinition<TArgsSchema>,
+): PromptDefinition<TArgsSchema> {
   if (!CAPABILITY_NAME.test(definition.name)) {
     throw new Error(`Invalid prompt name: ${definition.name}`);
   }

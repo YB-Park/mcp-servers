@@ -22,8 +22,7 @@ export const helloTool = defineTool({
     idempotentHint: true,
     openWorldHint: false,
   },
-  run(input) {
-    const { name } = inputSchema.parse(input);
+  run({ name }) {
     const structuredContent = { greeting: `Hello, ${name}!` };
     return {
       text: structuredContent.greeting,

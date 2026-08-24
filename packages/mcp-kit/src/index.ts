@@ -3,6 +3,7 @@ export type {
   ExecutionContext,
   IdentityContext,
   ObjectSchema,
+  ObjectSchemaOutput,
   PromptDefinition,
   PromptRenderResult,
   ResourceDefinition,

@@ -23,8 +23,7 @@ export const addTool = defineTool({
     idempotentHint: true,
     openWorldHint: false,
   },
-  run(input) {
-    const { a, b } = inputSchema.parse(input);
+  run({ a, b }) {
     const structuredContent = { result: a + b };
     return {
       text: `${a} + ${b} = ${structuredContent.result}`,

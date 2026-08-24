@@ -1,6 +1,7 @@
 import type * as z from 'zod/v4';
 
 export type ObjectSchema = z.ZodType<Record<string, unknown>>;
+export type ObjectSchemaOutput<TSchema extends ObjectSchema> = z.output<TSchema>;
 
 export interface IdentityContext {
   subject?: string;
@@ -27,15 +28,18 @@ export interface ToolExecutionResult {
   isError?: boolean;
 }
 
-export interface ToolDefinition {
+export interface ToolDefinition<TInputSchema extends ObjectSchema = ObjectSchema> {
   kind: 'tool';
   name: string;
   title: string;
   description: string;
-  inputSchema: ObjectSchema;
+  inputSchema: TInputSchema;
   outputSchema?: ObjectSchema;
   annotations?: ToolAnnotations;
-  run(input: Record<string, unknown>, context: ExecutionContext): Promise<ToolExecutionResult> | ToolExecutionResult;
+  run(
+    input: ObjectSchemaOutput<TInputSchema>,
+    context: ExecutionContext,
+  ): Promise<ToolExecutionResult> | ToolExecutionResult;
 }
 
 export interface ResourceReadResult {
@@ -57,13 +61,16 @@ export interface PromptRenderResult {
   text: string;
 }
 
-export interface PromptDefinition {
+export interface PromptDefinition<TArgsSchema extends ObjectSchema = ObjectSchema> {
   kind: 'prompt';
   name: string;
   title: string;
   description: string;
-  argsSchema: ObjectSchema;
-  render(args: Record<string, unknown>, context: ExecutionContext): Promise<PromptRenderResult> | PromptRenderResult;
+  argsSchema: TArgsSchema;
+  render(
+    args: ObjectSchemaOutput<TArgsSchema>,
+    context: ExecutionContext,
+  ): Promise<PromptRenderResult> | PromptRenderResult;
 }
 
 export interface ServerManifest {

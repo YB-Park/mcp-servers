@@ -26,8 +26,7 @@ const greetingPrompt = definePrompt({
   argsSchema: z.object({
     name: z.string().min(1).describe('Person to greet'),
   }),
-  render(args) {
-    const { name } = z.object({ name: z.string() }).parse(args);
+  render({ name }) {
     return { text: `Use the hello tool to greet ${name}.` };
   },
 });
