@@ -47,16 +47,8 @@ VS Code exposes MCP tools, resources, prompts, and apps through its native UI. P
 
 A chat request can currently enable at most 128 tools. The contract suite therefore rejects a single reference server that exceeds that limit; multi-server pressure is a separate catalog/design concern.
 
-## Acceptance checklist
+## Acceptance
 
-Before calling a release VS Code-compatible, verify in a real VS Code build:
+MCP conformance does not by itself prove the VS Code user experience. Release candidates use the reproducible checklist in [`vscode-acceptance.md`](./vscode-acceptance.md).
 
-1. add the remote HTTP server;
-2. confirm trust/start behavior;
-3. inspect tool names, titles, descriptions, schemas, and annotations in the tool picker;
-4. verify resources and prompts are visible;
-5. invoke representative tools and confirm expected approval UX;
-6. stop the host and verify MCP Output/diagnostics are actionable;
-7. repeat with portable `.mcp.json` when Agent Host portability is in scope.
-
-MCP conformance does not by itself prove this UX. Keep VS Code acceptance as an explicit release gate.
+The checklist deliberately starts by resetting trust and cached tools, records the exact VS Code version/commit/configuration surface, exercises tools/resources/prompts, and verifies that MCP Output is actionable when the host is unavailable.
