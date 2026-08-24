@@ -18,6 +18,10 @@
     "dev": "pnpm build && pnpm --filter @mcp-platform/host dev"
   },
   "devDependencies": {
+    "@mcp-platform/host": "workspace:*",
+    "@mcp-platform/mcp-kit": "workspace:*",
+    "@mcp-platform/runtime": "workspace:*",
+    "@mcp-server/example": "workspace:*",
     "@modelcontextprotocol/client": "2.0.0",
     "@types/node": "24.12.4",
     "tsx": "4.23.12",

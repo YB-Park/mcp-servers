@@ -21,7 +21,8 @@ function identityFromAuthInfo(authInfo: unknown): IdentityContext | undefined {
 }
 
 export function createServerHandler(definition: ServerDefinition) {
-  return createMcpHandler(({ authInfo }) =>
-    createSdkServer(definition, { identity: identityFromAuthInfo(authInfo) }),
-  );
+  return createMcpHandler(({ authInfo }) => {
+    const identity = identityFromAuthInfo(authInfo);
+    return createSdkServer(definition, identity ? { identity } : {});
+  });
 }
