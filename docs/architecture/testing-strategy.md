@@ -6,32 +6,41 @@ Testing is part of the platform contract. A green test suite must answer more th
 
 1. **Test the narrowest useful boundary first.** Unit tests should not need MCP or HTTP.
 2. **Use the official MCP client for protocol tests.** Do not validate our adapter only with hand-written JSON-RPC fixtures.
-3. **Exercise both supported protocol eras.** The same server definition must serve the legacy path and modern `2026-07-28` negotiation without capability drift.
+3. **Exercise both supported protocol eras.** The same server definition and real HTTP endpoint must serve the legacy path and modern `2026-07-28` negotiation without capability drift.
 4. **Keep negative-path tests first-class.** Invalid schemas, unknown routes, bad Host/Origin headers, handler failures, and malformed outputs are part of the contract.
-5. **Separate deterministic compatibility from model behavior.** Tool metadata and discovery can be gated in CI; whether a particular model chooses a tool is probabilistic and belongs in an evaluation layer, not a hard protocol gate.
-6. **Portable core tests never require company credentials.** Internal integrations add their own optional or internal-runner suites.
+5. **Test central-host isolation explicitly.** Multiple MCP modules share one process, but capability discovery and execution must remain scoped to `/mcp/:serverId`.
+6. **Separate deterministic compatibility from model behavior.** Tool metadata and discovery can be gated in CI; whether a particular model chooses a tool is probabilistic and belongs in an evaluation layer, not a hard protocol gate.
+7. **Portable core tests never require company credentials.** Internal integrations add their own optional or internal-runner suites.
 
 ## Test layers
 
 | Layer | Purpose | Transport | Default gate |
 | --- | --- | --- | --- |
-| Unit | Pure framework/module logic | none | every PR |
-| Contract | Public metadata, discovery quality, client constraints | in-process MCP | every PR |
+| Unit | Pure framework/module logic and compile-time DX contracts | none | every PR |
+| Contract | Public metadata, discovery quality, client configuration constraints | in-process MCP / files | every PR |
 | Runtime integration | MCP SDK adapter, schemas, error semantics, protocol eras | in-process Streamable HTTP handler | every PR |
-| Host/security | routing, Host/Origin guards, HTTP status behavior | real Node HTTP listener where useful | every PR |
-| Smoke | built artifact starts and serves a real endpoint | real HTTP | every PR |
+| Host/security | routing, multi-server isolation, Host/Origin guards | real Node HTTP | every PR |
+| Smoke | built application starts; legacy and modern clients complete a representative call | real HTTP | every PR |
 | Conformance | Spec-defined MCP behavior | real HTTP | compatibility gate |
 | VS Code acceptance | install/trust/discovery/tool picker/resources/prompts/diagnostics | real VS Code | release candidate |
 | Internal integration | company APIs, DBs, IAM, network policy | company environment | internal gate |
 
+## Framework-owned test helpers
+
+`@mcp-platform/testing` is a public testing surface for server authors. It owns official MCP client bootstrap and protocol-mode selection so individual servers do not copy transport details.
+
+- `withMcpTestClient(server, mode, fn)` runs against the in-process runtime handler.
+- `withMcpHttpTestClient(url, mode, fn)` runs against a real HTTP endpoint.
+- `protocolTestModes` currently contains `legacy` and `modern`.
+
+When MCP lifecycle/SDK details change, compatibility bootstrap should normally change here rather than across every server test suite.
+
 ## Protocol compatibility matrix
 
-The framework-owned test helper `@mcp-platform/testing` creates official MCP clients against the same `ServerDefinition` in two modes:
+- `legacy`: default client negotiation, representing the stateful 2025-era compatibility path.
+- `modern`: automatic negotiation and assertion of `2026-07-28`, representing the stateless lifecycle.
 
-- `legacy`: default client negotiation, representing the 2025-era compatibility path.
-- `modern`: automatic negotiation and assertion of `2026-07-28`.
-
-Every framework-level capability test that could drift between protocol eras should use this matrix. Business-only unit tests should not.
+Framework-level capabilities that could drift between protocol eras should use this matrix. Business-only unit tests should not. At least one smoke path must exercise both modes over the actual Node HTTP listener, not only the in-process handler.
 
 ## Runtime validation cases
 
@@ -43,6 +52,7 @@ At minimum the portable suite must prove:
 - server instructions are delivered;
 - legacy and modern paths expose equivalent core capabilities;
 - unknown HTTP server ids and invalid routes are rejected;
+- multiple server modules do not leak capabilities across endpoints;
 - non-loopback hosting requires an explicit Host allowlist;
 - untrusted Host and Origin headers are rejected.
 
@@ -62,17 +72,29 @@ VS Code currently allows at most 128 enabled tools in one chat request. A single
 
 ## MCP Inspector and conformance
 
-MCP Inspector is valuable for exploratory debugging and human inspection, but it is not the main CI oracle. The automated compatibility gate should use the official MCP conformance runner against a real HTTP endpoint, with the runner version and MCP spec revision pinned in CI.
+MCP Inspector is valuable for exploratory debugging and human inspection, but it is not the main CI oracle.
 
-Target command shape:
+The official conformance runner spans different lifecycle revisions and capability-specific scenarios. In particular, pre-`2026-07-28` dated revisions use a stateful lifecycle while `2026-07-28` uses the stateless lifecycle. Therefore conformance must not be enabled as a single opaque "all green" command against a production-oriented example server.
+
+The compatibility gate should instead:
+
+1. pin the conformance runner/referee version and target spec revisions;
+2. use a dedicated conformance fixture/server when scenarios require special progress/logging/sampling/resource behavior;
+3. run the relevant revision lifecycle intentionally;
+4. keep an `expected-failures.yaml` only for explicitly unsupported or extension-tagged scenarios;
+5. fail CI on any new unexpected failure;
+6. document every expected failure with an issue/ADR and remove it when support lands.
+
+Target command shape for a compatible fixture:
 
 ```bash
 npx @modelcontextprotocol/conformance server \
-  --url http://127.0.0.1:3000/mcp/example \
-  --suite active
+  --url http://127.0.0.1:3000/mcp/conformance \
+  --suite active \
+  --expected-failures tests/conformance/expected-failures.yaml
 ```
 
-Do not blindly enable every optional conformance scenario. Capability-specific scenarios must be classified as supported, intentionally skipped, or expected-failure with an issue/ADR explaining why.
+Do not blindly enable every optional scenario. Capability-specific scenarios must be classified as supported, intentionally skipped, or expected-failure with an issue/ADR explaining why.
 
 ## Model/tool-selection evaluations
 
