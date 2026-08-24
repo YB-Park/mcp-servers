@@ -6,14 +6,17 @@ const inferredTool = defineTool({
   kind: 'tool',
   name: 'typed-tool',
   title: 'Typed tool',
-  description: 'Compile-time fixture proving schema-driven input inference.',
+  description: 'Compile-time fixture proving schema-driven input and output inference.',
   inputSchema: z.object({
     name: z.string(),
     count: z.number().int(),
   }),
+  outputSchema: z.array(z.string()),
   run(input) {
     expectTypeOf(input).toEqualTypeOf<{ name: string; count: number }>();
-    return { text: `${input.name}:${input.count}` };
+    const structuredContent = [input.name.repeat(input.count)];
+    expectTypeOf(structuredContent).toEqualTypeOf<string[]>();
+    return { text: structuredContent[0] ?? '', structuredContent };
   },
 });
 

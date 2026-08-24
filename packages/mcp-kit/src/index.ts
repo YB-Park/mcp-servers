@@ -8,6 +8,8 @@ export type {
   PromptRenderResult,
   ResourceDefinition,
   ResourceReadResult,
+  Schema,
+  SchemaOutput,
   ServerDefinition,
   ServerInput,
   ServerManifest,

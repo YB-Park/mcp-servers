@@ -41,9 +41,9 @@ export function createSdkServer(
       },
       async input => {
         const result = await tool.run(input as Record<string, unknown>, context);
-        let structuredContent = result.structuredContent;
+        let structuredContent: unknown = result.structuredContent;
 
-        if (tool.outputSchema && structuredContent) {
+        if (tool.outputSchema && structuredContent !== undefined) {
           const parsed = await tool.outputSchema.safeParseAsync(structuredContent);
           if (!parsed.success) {
             throw new Error(`Tool ${tool.name} returned structured content that does not match its output schema`);
@@ -53,7 +53,7 @@ export function createSdkServer(
 
         return {
           content: [{ type: 'text' as const, text: result.text }],
-          ...(structuredContent ? { structuredContent } : {}),
+          ...(structuredContent !== undefined ? { structuredContent } : {}),
           ...(result.isError ? { isError: true } : {}),
         };
       },

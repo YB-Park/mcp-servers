@@ -23,15 +23,39 @@ const getOrder = defineTool({
   title: 'Get order',
   description: 'Read one order by id.',
   inputSchema: z.object({ orderId: z.string() }),
+  outputSchema: z.object({ status: z.string() }),
   annotations: {
     readOnlyHint: true,
     destructiveHint: false,
   },
   run({ orderId }, ctx) {
-    // orderId is inferred as string.
-    return { text: `order=${orderId}` };
+    // orderId is inferred as string; structuredContent is checked against outputSchema.
+    return {
+      text: `order=${orderId}`,
+      structuredContent: { status: 'ready' },
+    };
   },
 });
 ```
 
 If handler code needs a second parse to obtain usable types, treat that as a framework DX bug rather than copying the workaround into every server.
+
+## Structured output across MCP revisions
+
+For `2026-07-28`, MCP allows any JSON value as `structuredContent` and an unrestricted `outputSchema` root. Arrays and primitives are therefore valid framework outputs:
+
+```ts
+const count = defineTool({
+  kind: 'tool',
+  name: 'count',
+  title: 'Count',
+  description: 'Return an exact count.',
+  inputSchema: z.object({}),
+  outputSchema: z.number(),
+  run() {
+    return { text: '0', structuredContent: 0 };
+  },
+});
+```
+
+Do not test structured output with a truthy check: `0`, `false`, `null`, and `""` are valid JSON values. The official MCP SDK projects non-object output into a legacy-compatible `{ result: ... }` envelope when serving 2025-era clients; server business code stays revision-neutral.

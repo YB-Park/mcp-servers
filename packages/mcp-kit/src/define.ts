@@ -2,6 +2,7 @@ import type {
   ObjectSchema,
   PromptDefinition,
   ResourceDefinition,
+  Schema,
   ServerDefinition,
   ServerInput,
   ToolDefinition,
@@ -20,9 +21,10 @@ function assertUnique(kind: string, names: readonly string[]): void {
   }
 }
 
-export function defineTool<TInputSchema extends ObjectSchema>(
-  definition: ToolDefinition<TInputSchema>,
-): ToolDefinition<TInputSchema> {
+export function defineTool<
+  TInputSchema extends ObjectSchema,
+  TOutputSchema extends Schema | undefined = undefined,
+>(definition: ToolDefinition<TInputSchema, TOutputSchema>): ToolDefinition<TInputSchema, TOutputSchema> {
   if (!CAPABILITY_NAME.test(definition.name)) {
     throw new Error(`Invalid tool name: ${definition.name}`);
   }

@@ -1,6 +1,8 @@
 import type * as z from 'zod/v4';
 
+export type Schema = z.ZodType<unknown>;
 export type ObjectSchema = z.ZodType<Record<string, unknown>>;
+export type SchemaOutput<TSchema extends Schema> = z.output<TSchema>;
 export type ObjectSchemaOutput<TSchema extends ObjectSchema> = z.output<TSchema>;
 
 export interface IdentityContext {
@@ -22,24 +24,28 @@ export interface ToolAnnotations {
   openWorldHint?: boolean;
 }
 
-export interface ToolExecutionResult {
+export interface ToolExecutionResult<TStructuredContent = unknown> {
   text: string;
-  structuredContent?: Record<string, unknown>;
+  structuredContent?: TStructuredContent;
   isError?: boolean;
 }
 
-export interface ToolDefinition<TInputSchema extends ObjectSchema = ObjectSchema> {
+export interface ToolDefinition<
+  TInputSchema extends ObjectSchema = ObjectSchema,
+  TOutputSchema extends Schema | undefined = Schema | undefined,
+> {
   kind: 'tool';
   name: string;
   title: string;
   description: string;
   inputSchema: TInputSchema;
-  outputSchema?: ObjectSchema;
+  outputSchema?: TOutputSchema;
   annotations?: ToolAnnotations;
   run(
     input: ObjectSchemaOutput<TInputSchema>,
     context: ExecutionContext,
-  ): Promise<ToolExecutionResult> | ToolExecutionResult;
+  ): Promise<ToolExecutionResult<TOutputSchema extends Schema ? SchemaOutput<TOutputSchema> : unknown>>
+    | ToolExecutionResult<TOutputSchema extends Schema ? SchemaOutput<TOutputSchema> : unknown>;
 }
 
 export interface ResourceReadResult {
