@@ -24,8 +24,16 @@ jobs:
           node-version: 24
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      - name: Build, unit/integration tests, and HTTP smoke test
-        run: pnpm check
+      - name: Build
+        run: pnpm build
+      - name: Unit tests
+        run: pnpm test:unit
+      - name: Contract tests
+        run: pnpm test:contract
+      - name: Runtime and protocol integration tests
+        run: pnpm test:integration
+      - name: Real HTTP smoke test
+        run: pnpm test:smoke
 
   docker:
     runs-on: ubuntu-latest

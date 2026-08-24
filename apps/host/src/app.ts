@@ -43,14 +43,6 @@ function normalizeIncomingRequest(req: IncomingMessage): NormalizedIncomingReque
 
 export function createMcpHost(options: HostOptions): HttpServer {
   const bindHost = options.bindHost ?? '127.0.0.1';
-  const registry = new ServerRegistry(options.servers);
-  const nodeHandlers = new Map(
-    registry.list().map(definition => [
-      definition.manifest.id,
-      toNodeHandler(createServerHandler(definition)),
-    ] as const),
-  );
-
   const validateHost = options.allowedHosts?.length
     ? hostHeaderValidation([...options.allowedHosts])
     : isLoopback(bindHost)
@@ -66,6 +58,17 @@ export function createMcpHost(options: HostOptions): HttpServer {
   if (!validateHost) {
     throw new Error('allowedHosts is required when binding MCP host to a non-loopback interface');
   }
+
+  // Build MCP handlers only after host security configuration has been accepted.
+  // This avoids constructing protocol resources for a host configuration that
+  // will be rejected before the HTTP server is returned.
+  const registry = new ServerRegistry(options.servers);
+  const nodeHandlers = new Map(
+    registry.list().map(definition => [
+      definition.manifest.id,
+      toNodeHandler(createServerHandler(definition)),
+    ] as const),
+  );
 
   return createServer((req, res) => {
     const normalizedRequest = normalizeIncomingRequest(req);

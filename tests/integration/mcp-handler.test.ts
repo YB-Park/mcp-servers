@@ -1,33 +1,7 @@
-import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { createServerHandler } from '@mcp-platform/runtime';
+import { protocolTestModes, withMcpTestClient } from '@mcp-platform/testing';
 import { exampleServer } from '@mcp-server/example';
-import { afterEach, describe, expect, it } from 'vitest';
-
-const cleanups: Array<() => Promise<void>> = [];
-
-afterEach(async () => {
-  while (cleanups.length) {
-    await cleanups.pop()?.();
-  }
-});
-
-async function connect(mode: 'legacy' | 'modern') {
-  const handler = createServerHandler(exampleServer);
-  const transport = new StreamableHTTPClientTransport(new URL('http://test.local/mcp'), {
-    fetch: (url, init) => handler.fetch(new Request(url, init)),
-  });
-  const client = new Client(
-    { name: `integration-${mode}`, version: '1.0.0' },
-    mode === 'modern' ? { versionNegotiation: { mode: 'auto' } } : undefined,
-  );
-
-  await client.connect(transport);
-  cleanups.push(async () => {
-    await client.close();
-    await handler.close();
-  });
-  return client;
-}
+import type { Client } from '@modelcontextprotocol/client';
+import { describe, expect, it } from 'vitest';
 
 async function assertExampleContract(client: Client) {
   const tools = await client.listTools();
@@ -66,16 +40,15 @@ async function assertExampleContract(client: Client) {
 }
 
 describe('MCP handler compatibility', () => {
-  it('serves the legacy 2025-era connection used by default clients', async () => {
-    const client = await connect('legacy');
-    expect(client.getProtocolEra()).toBe('legacy');
-    await assertExampleContract(client);
-  });
-
-  it('serves modern 2026-07-28 negotiation from the same endpoint', async () => {
-    const client = await connect('modern');
-    expect(client.getProtocolEra()).toBe('modern');
-    expect(client.getNegotiatedProtocolVersion()).toBe('2026-07-28');
-    await assertExampleContract(client);
-  });
+  for (const mode of protocolTestModes) {
+    it(`serves the ${mode} protocol path from the same server definition`, async () => {
+      await withMcpTestClient(exampleServer, mode, async ({ client }) => {
+        expect(client.getProtocolEra()).toBe(mode);
+        if (mode === 'modern') {
+          expect(client.getNegotiatedProtocolVersion()).toBe('2026-07-28');
+        }
+        await assertExampleContract(client);
+      });
+    });
+  }
 });
