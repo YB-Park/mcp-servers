@@ -24,11 +24,100 @@ export interface ToolAnnotations {
   openWorldHint?: boolean;
 }
 
-export interface ToolExecutionResult<TStructuredContent = unknown> {
+export interface ContentAnnotations {
+  audience?: readonly ('user' | 'assistant')[];
+  priority?: number;
+  lastModified?: string;
+}
+
+export interface ContentMeta {
+  meta?: Readonly<Record<string, unknown>>;
+  annotations?: ContentAnnotations;
+}
+
+export interface TextContent extends ContentMeta {
+  type: 'text';
   text: string;
+}
+
+export interface ImageContent extends ContentMeta {
+  type: 'image';
+  data: string;
+  mimeType: string;
+}
+
+export interface AudioContent extends ContentMeta {
+  type: 'audio';
+  data: string;
+  mimeType: string;
+}
+
+export interface IconDefinition {
+  src: string;
+  mimeType?: string;
+  sizes?: readonly string[];
+  theme?: 'light' | 'dark';
+}
+
+export type EmbeddedResourceContents =
+  | {
+      uri: string;
+      text: string;
+      mimeType?: string;
+      meta?: Readonly<Record<string, unknown>>;
+    }
+  | {
+      uri: string;
+      blob: string;
+      mimeType?: string;
+      meta?: Readonly<Record<string, unknown>>;
+    };
+
+export interface EmbeddedResourceContent extends ContentMeta {
+  type: 'resource';
+  resource: EmbeddedResourceContents;
+}
+
+export interface ResourceLinkContent extends ContentMeta {
+  type: 'resource_link';
+  uri: string;
+  name: string;
+  title?: string;
+  description?: string;
+  mimeType?: string;
+  size?: number;
+  icons?: readonly IconDefinition[];
+}
+
+export type ToolContent =
+  | TextContent
+  | ImageContent
+  | AudioContent
+  | EmbeddedResourceContent
+  | ResourceLinkContent;
+
+export type PromptContent = TextContent | ImageContent | AudioContent | EmbeddedResourceContent;
+
+export interface PromptMessage {
+  role: 'user' | 'assistant';
+  content: PromptContent;
+}
+
+type ToolResultBase<TStructuredContent> = {
   structuredContent?: TStructuredContent;
   isError?: boolean;
-}
+};
+
+export type ToolExecutionResult<TStructuredContent = unknown> = ToolResultBase<TStructuredContent> & (
+  | {
+      text: string;
+      content?: readonly ToolContent[];
+    }
+  | {
+      text?: string;
+      content: readonly ToolContent[];
+    }
+);
 
 export interface ToolDefinition<
   TInputSchema extends ObjectSchema = ObjectSchema,
@@ -48,10 +137,22 @@ export interface ToolDefinition<
     | ToolExecutionResult<TOutputSchema extends Schema ? SchemaOutput<TOutputSchema> : unknown>;
 }
 
-export interface ResourceReadResult {
-  text: string;
-  mimeType?: string;
-}
+export type ResourceContent = EmbeddedResourceContents;
+
+export type ResourceReadResult =
+  | {
+      text: string;
+      mimeType?: string;
+      meta?: Readonly<Record<string, unknown>>;
+    }
+  | {
+      blob: string;
+      mimeType?: string;
+      meta?: Readonly<Record<string, unknown>>;
+    }
+  | {
+      contents: readonly ResourceContent[];
+    };
 
 export interface ResourceDefinition {
   kind: 'resource';
@@ -63,9 +164,9 @@ export interface ResourceDefinition {
   read(context: ExecutionContext): Promise<ResourceReadResult> | ResourceReadResult;
 }
 
-export interface PromptRenderResult {
-  text: string;
-}
+export type PromptRenderResult =
+  | { text: string }
+  | { messages: readonly PromptMessage[] };
 
 export interface PromptDefinition<TArgsSchema extends ObjectSchema = ObjectSchema> {
   kind: 'prompt';

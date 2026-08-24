@@ -1,4 +1,14 @@
-import type { ExecutionContext, IdentityContext, ServerDefinition } from '@mcp-platform/mcp-kit';
+import type {
+  ContentAnnotations,
+  ContentMeta,
+  EmbeddedResourceContents,
+  ExecutionContext,
+  IdentityContext,
+  PromptContent,
+  ResourceContent,
+  ServerDefinition,
+  ToolContent,
+} from '@mcp-platform/mcp-kit';
 import { McpServer } from '@modelcontextprotocol/server';
 
 const anonymousIdentity: IdentityContext = Object.freeze({ claims: Object.freeze({}) });
@@ -12,6 +22,139 @@ function executionContext(definition: ServerDefinition, request: RuntimeRequestC
     serverId: definition.manifest.id,
     identity: request.identity ?? anonymousIdentity,
   };
+}
+
+function annotations(value: ContentAnnotations | undefined) {
+  if (!value) return {};
+  return {
+    annotations: {
+      ...(value.audience ? { audience: [...value.audience] } : {}),
+      ...(value.priority !== undefined ? { priority: value.priority } : {}),
+      ...(value.lastModified ? { lastModified: value.lastModified } : {}),
+    },
+  };
+}
+
+function metadata(value: ContentMeta) {
+  return {
+    ...(value.meta ? { _meta: { ...value.meta } } : {}),
+    ...annotations(value.annotations),
+  };
+}
+
+function embeddedResource(resource: EmbeddedResourceContents) {
+  return 'text' in resource
+    ? {
+        uri: resource.uri,
+        text: resource.text,
+        ...(resource.mimeType ? { mimeType: resource.mimeType } : {}),
+        ...(resource.meta ? { _meta: { ...resource.meta } } : {}),
+      }
+    : {
+        uri: resource.uri,
+        blob: resource.blob,
+        ...(resource.mimeType ? { mimeType: resource.mimeType } : {}),
+        ...(resource.meta ? { _meta: { ...resource.meta } } : {}),
+      };
+}
+
+function toolContent(content: ToolContent) {
+  switch (content.type) {
+    case 'text':
+      return {
+        type: 'text' as const,
+        text: content.text,
+        ...metadata(content),
+      };
+    case 'image':
+      return {
+        type: 'image' as const,
+        data: content.data,
+        mimeType: content.mimeType,
+        ...metadata(content),
+      };
+    case 'audio':
+      return {
+        type: 'audio' as const,
+        data: content.data,
+        mimeType: content.mimeType,
+        ...metadata(content),
+      };
+    case 'resource':
+      return {
+        type: 'resource' as const,
+        resource: embeddedResource(content.resource),
+        ...metadata(content),
+      };
+    case 'resource_link':
+      return {
+        type: 'resource_link' as const,
+        uri: content.uri,
+        name: content.name,
+        ...(content.title ? { title: content.title } : {}),
+        ...(content.description ? { description: content.description } : {}),
+        ...(content.mimeType ? { mimeType: content.mimeType } : {}),
+        ...(content.size !== undefined ? { size: content.size } : {}),
+        ...(content.icons
+          ? {
+              icons: content.icons.map(icon => ({
+                src: icon.src,
+                ...(icon.mimeType ? { mimeType: icon.mimeType } : {}),
+                ...(icon.sizes ? { sizes: [...icon.sizes] } : {}),
+                ...(icon.theme ? { theme: icon.theme } : {}),
+              })),
+            }
+          : {}),
+        ...metadata(content),
+      };
+  }
+}
+
+function promptContent(content: PromptContent) {
+  switch (content.type) {
+    case 'text':
+      return {
+        type: 'text' as const,
+        text: content.text,
+        ...metadata(content),
+      };
+    case 'image':
+      return {
+        type: 'image' as const,
+        data: content.data,
+        mimeType: content.mimeType,
+        ...metadata(content),
+      };
+    case 'audio':
+      return {
+        type: 'audio' as const,
+        data: content.data,
+        mimeType: content.mimeType,
+        ...metadata(content),
+      };
+    case 'resource':
+      return {
+        type: 'resource' as const,
+        resource: embeddedResource(content.resource),
+        ...metadata(content),
+      };
+  }
+}
+
+function resourceContent(content: ResourceContent, fallbackMimeType?: string) {
+  return 'text' in content
+    ? {
+        uri: content.uri,
+        text: content.text,
+        ...(content.mimeType ?? fallbackMimeType ? { mimeType: content.mimeType ?? fallbackMimeType } : {}),
+        ...(content.meta ? { _meta: { ...content.meta } } : {}),
+      }
+    : {
+        uri: content.uri,
+        blob: content.blob,
+        ...(content.mimeType ?? fallbackMimeType ? { mimeType: content.mimeType ?? fallbackMimeType } : {}),
+        ...(content.meta ? { _meta: { ...content.meta } } : {}),
+      };
 }
 
 export function createSdkServer(
@@ -51,8 +194,13 @@ export function createSdkServer(
           structuredContent = parsed.data;
         }
 
+        const content = [
+          ...(result.text !== undefined ? [{ type: 'text' as const, text: result.text }] : []),
+          ...(result.content ?? []).map(toolContent),
+        ];
+
         return {
-          content: [{ type: 'text' as const, text: result.text }],
+          content,
           ...(structuredContent !== undefined ? { structuredContent } : {}),
           ...(result.isError ? { isError: true } : {}),
         };
@@ -71,15 +219,33 @@ export function createSdkServer(
       },
       async uri => {
         const result = await resource.read(context);
-        return {
-          contents: [
-            {
-              uri: uri.href,
-              text: result.text,
-              ...(result.mimeType ?? resource.mimeType ? { mimeType: result.mimeType ?? resource.mimeType } : {}),
-            },
-          ],
-        };
+        const contents = 'contents' in result
+          ? result.contents.map(content => resourceContent(content, resource.mimeType))
+          : 'text' in result
+            ? [
+                resourceContent(
+                  {
+                    uri: uri.href,
+                    text: result.text,
+                    ...(result.mimeType ? { mimeType: result.mimeType } : {}),
+                    ...(result.meta ? { meta: result.meta } : {}),
+                  },
+                  resource.mimeType,
+                ),
+              ]
+            : [
+                resourceContent(
+                  {
+                    uri: uri.href,
+                    blob: result.blob,
+                    ...(result.mimeType ? { mimeType: result.mimeType } : {}),
+                    ...(result.meta ? { meta: result.meta } : {}),
+                  },
+                  resource.mimeType,
+                ),
+              ];
+
+        return { contents };
       },
     );
   }
@@ -94,14 +260,19 @@ export function createSdkServer(
       },
       async args => {
         const rendered = await prompt.render(args as Record<string, unknown>, context);
-        return {
-          messages: [
-            {
-              role: 'user' as const,
-              content: { type: 'text' as const, text: rendered.text },
-            },
-          ],
-        };
+        const messages = 'messages' in rendered
+          ? rendered.messages.map(message => ({
+              role: message.role,
+              content: promptContent(message.content),
+            }))
+          : [
+              {
+                role: 'user' as const,
+                content: { type: 'text' as const, text: rendered.text },
+              },
+            ];
+
+        return { messages };
       },
     );
   }
