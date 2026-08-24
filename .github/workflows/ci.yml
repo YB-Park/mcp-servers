@@ -66,6 +66,13 @@ jobs:
             --suite all \
             --spec-version 2026-07-28 \
             --verbose
+      - name: Upload conformance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-2026-explore
+          path: results
+          retention-days: 1
       - name: Show host log
         if: always()
         run: cat /tmp/mcp-host.log
