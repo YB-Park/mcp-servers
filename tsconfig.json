@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/mcp-kit" },
+    { "path": "./packages/runtime" },
+    { "path": "./servers/example" },
+    { "path": "./apps/host" }
+  ]
+}
