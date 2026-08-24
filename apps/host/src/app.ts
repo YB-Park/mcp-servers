@@ -25,20 +25,20 @@ export interface RunningHost {
   close(): Promise<void>;
 }
 
-type ValidatableRequest = IncomingMessage & { method: string };
+type NormalizedIncomingRequest = IncomingMessage & { method: string; url: string };
 
 function isLoopback(host: string): boolean {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1';
 }
 
-function normalizeRequestMethod(req: IncomingMessage): ValidatableRequest | undefined {
-  // Node's IncomingMessage types allow an absent method, while real inbound HTTP
-  // server requests should always carry one and MCP's node adapter requires it.
-  // Reject malformed requests here rather than weakening strict TypeScript settings.
-  if (!req.method) {
+function normalizeIncomingRequest(req: IncomingMessage): NormalizedIncomingRequest | undefined {
+  // Node's IncomingMessage types allow method/url to be absent, while a real
+  // inbound HTTP server request should carry both and MCP's node adapter
+  // requires them. Reject malformed input instead of weakening strict types.
+  if (!req.method || !req.url) {
     return undefined;
   }
-  return req as ValidatableRequest;
+  return req as NormalizedIncomingRequest;
 }
 
 export function createMcpHost(options: HostOptions): HttpServer {
@@ -68,20 +68,20 @@ export function createMcpHost(options: HostOptions): HttpServer {
   }
 
   return createServer((req, res) => {
-    const validatableRequest = normalizeRequestMethod(req);
-    if (!validatableRequest) {
+    const normalizedRequest = normalizeIncomingRequest(req);
+    if (!normalizedRequest) {
       res.statusCode = 400;
       res.setHeader('content-type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'invalid_http_request' }));
       return;
     }
 
-    if (!validateHost(validatableRequest, res)) return;
-    if (validateOrigin && !validateOrigin(validatableRequest, res)) return;
+    if (!validateHost(normalizedRequest, res)) return;
+    if (validateOrigin && !validateOrigin(normalizedRequest, res)) return;
 
-    const pathname = new URL(req.url ?? '/', 'http://mcp.local').pathname;
+    const pathname = new URL(normalizedRequest.url, 'http://mcp.local').pathname;
 
-    if (pathname === '/health' && req.method === 'GET') {
+    if (pathname === '/health' && normalizedRequest.method === 'GET') {
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({
@@ -112,7 +112,7 @@ export function createMcpHost(options: HostOptions): HttpServer {
       return;
     }
 
-    void handler(validatableRequest, res);
+    void handler(normalizedRequest, res);
   });
 }
 
