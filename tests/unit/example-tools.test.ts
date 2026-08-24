@@ -8,14 +8,16 @@ const context = {
 
 describe('example tools', () => {
   it('greets deterministically', async () => {
-    await expect(helloTool.run({ name: 'MCP' }, context)).resolves.toMatchObject({
+    const result = await helloTool.run({ name: 'MCP' }, context);
+    expect(result).toMatchObject({
       text: 'Hello, MCP!',
       structuredContent: { greeting: 'Hello, MCP!' },
     });
   });
 
   it('adds exactly', async () => {
-    await expect(addTool.run({ a: 20, b: 22 }, context)).resolves.toMatchObject({
+    const result = await addTool.run({ a: 20, b: 22 }, context);
+    expect(result).toMatchObject({
       structuredContent: { result: 42 },
     });
   });
