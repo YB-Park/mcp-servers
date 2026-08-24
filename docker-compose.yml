@@ -1,0 +1,9 @@
+services:
+  mcp-host:
+    build: .
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 3000
+      MCP_ALLOWED_HOSTS: localhost,127.0.0.1
+    ports:
+      - "3000:3000"
