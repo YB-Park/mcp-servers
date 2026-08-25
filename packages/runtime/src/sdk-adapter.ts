@@ -4,7 +4,6 @@ import type {
   EmbeddedResourceContents,
   ExecutionContext,
   IdentityContext,
-  PromptContent,
   PromptDefinition,
   PromptDefinitionWithArgs,
   PromptRenderResult,
@@ -61,7 +60,7 @@ function embeddedResource(resource: EmbeddedResourceContents) {
       };
 }
 
-function toolContent(content: ToolContent) {
+function contentBlock(content: ToolContent) {
   switch (content.type) {
     case 'text':
       return {
@@ -113,42 +112,11 @@ function toolContent(content: ToolContent) {
   }
 }
 
-function promptContent(content: PromptContent) {
-  switch (content.type) {
-    case 'text':
-      return {
-        type: 'text' as const,
-        text: content.text,
-        ...metadata(content),
-      };
-    case 'image':
-      return {
-        type: 'image' as const,
-        data: content.data,
-        mimeType: content.mimeType,
-        ...metadata(content),
-      };
-    case 'audio':
-      return {
-        type: 'audio' as const,
-        data: content.data,
-        mimeType: content.mimeType,
-        ...metadata(content),
-      };
-    case 'resource':
-      return {
-        type: 'resource' as const,
-        resource: embeddedResource(content.resource),
-        ...metadata(content),
-      };
-  }
-}
-
 function promptMessages(rendered: PromptRenderResult) {
   return 'messages' in rendered
     ? rendered.messages.map(message => ({
         role: message.role,
-        content: promptContent(message.content),
+        content: contentBlock(message.content),
       }))
     : [
         {
@@ -217,7 +185,7 @@ export function createSdkServer(
 
         const content = [
           ...(result.text !== undefined ? [{ type: 'text' as const, text: result.text }] : []),
-          ...(result.content ?? []).map(toolContent),
+          ...(result.content ?? []).map(contentBlock),
         ];
 
         return {
