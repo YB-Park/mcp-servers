@@ -18,8 +18,9 @@ This repository is an MCP server framework/runtime, not an agent harness.
 - Stateless HTTP is the default. Do not add session state unless the capability truly requires it.
 - Do not implement protocol negotiation manually; delegate wire behavior to the official SDK adapter.
 - Do not make MCP annotations security controls. Authorization must be deterministic and server-side.
+- Never expose Authorization headers, raw access tokens, or provider-private credential payloads to server/tool business code. Runtime/auth adapters may map non-secret identity metadata into `ExecutionContext`.
 - Keep VS Code-specific distribution/configuration outside the framework core. Workspace config, registries, and Agent Plugin packaging are adapters around the same server definition.
-- Do not narrow MCP core merely to make a wrapper API simpler. Preserve rich content, binary resources, multimodal prompts, legal structured output, and omitted optional fields through `mcp-kit`/runtime contracts.
+- Do not narrow MCP core merely to make a wrapper API simpler. Preserve legal capability names, rich content blocks, binary resources, multimodal prompts, legal structured output, and omitted optional fields through `mcp-kit`/runtime contracts.
 - Prefer a simple direct implementation over speculative factories/providers. Add an abstraction only at a confirmed external change boundary or after repeated implementation pressure.
 - Documentation is part of the public API. Update guides, examples, and LLM instructions with public API changes.
 
