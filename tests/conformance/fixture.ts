@@ -136,7 +136,6 @@ const simplePrompt = definePrompt({
   name: 'test_simple_prompt',
   title: 'Simple Test Prompt',
   description: 'A simple prompt without arguments.',
-  argsSchema: z.object({}),
   render() {
     return { text: 'This is a simple prompt for testing.' };
   },
@@ -192,7 +191,6 @@ const imagePrompt = definePrompt({
   name: 'test_prompt_with_image',
   title: 'Prompt With Image',
   description: 'A prompt containing an image followed by text.',
-  argsSchema: z.object({}),
   render() {
     return {
       messages: [
