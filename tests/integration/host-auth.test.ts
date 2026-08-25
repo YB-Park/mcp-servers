@@ -26,20 +26,32 @@ afterEach(async () => {
 });
 
 describe('managed API key host authentication', () => {
-  it('keeps health public but rejects missing and invalid credentials on MCP routes', async () => {
-    const { running } = await fixture();
+  it('keeps health minimal/public and authenticates before revealing MCP server existence', async () => {
+    const { store, running } = await fixture();
     try {
-      expect((await fetch(`${running.baseUrl}/health`)).status).toBe(200);
+      const health = await fetch(`${running.baseUrl}/health`);
+      expect(health.status).toBe(200);
+      expect(await health.json()).toEqual({ status: 'ok' });
 
       const missing = await fetch(`${running.baseUrl}/mcp/example`, { method: 'POST' });
       expect(missing.status).toBe(401);
       expect(missing.headers.get('www-authenticate')).toContain('Bearer');
+
+      const missingUnknown = await fetch(`${running.baseUrl}/mcp/not-registered`, { method: 'POST' });
+      expect(missingUnknown.status).toBe(401);
 
       const invalid = await fetch(`${running.baseUrl}/mcp/example`, {
         method: 'POST',
         headers: { Authorization: 'Bearer invalid' },
       });
       expect(invalid.status).toBe(401);
+
+      const issued = await store.create({ label: 'Authenticated discovery test' });
+      const authenticatedUnknown = await fetch(`${running.baseUrl}/mcp/not-registered`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${issued.token}` },
+      });
+      expect(authenticatedUnknown.status).toBe(404);
     } finally {
       await running.close();
     }
