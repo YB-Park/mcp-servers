@@ -11,6 +11,10 @@ export interface McpTestSession {
   close(): Promise<void>;
 }
 
+export interface McpHttpTestClientOptions {
+  bearerToken?: string;
+}
+
 function createClient(mode: ProtocolTestMode): Client {
   return new Client(
     { name: `mcp-platform-test-${mode}`, version: '1.0.0' },
@@ -54,10 +58,14 @@ export async function connectMcpTestClient(
 export async function connectMcpHttpTestClient(
   url: URL | string,
   mode: ProtocolTestMode = 'modern',
+  options: McpHttpTestClientOptions = {},
 ): Promise<McpTestSession> {
   const client = createClient(mode);
   const transport = new StreamableHTTPClientTransport(
     typeof url === 'string' ? new URL(url) : url,
+    options.bearerToken
+      ? { authProvider: { token: async () => options.bearerToken } }
+      : undefined,
   );
 
   await client.connect(transport);
@@ -90,8 +98,9 @@ export async function withMcpHttpTestClient<T>(
   url: URL | string,
   mode: ProtocolTestMode,
   run: (session: McpTestSession) => Promise<T> | T,
+  options: McpHttpTestClientOptions = {},
 ): Promise<T> {
-  const session = await connectMcpHttpTestClient(url, mode);
+  const session = await connectMcpHttpTestClient(url, mode, options);
   try {
     return await run(session);
   } finally {
