@@ -42,6 +42,17 @@ describe('mcp-kit contracts', () => {
     })).toThrow(/Invalid server id/);
   });
 
+  it('accepts the full MCP capability-name character set and 64-character boundary', () => {
+    expect(tool('namespace/tool.v1-test_name').name).toBe('namespace/tool.v1-test_name');
+    expect(tool('_'.repeat(64)).name).toHaveLength(64);
+  });
+
+  it('rejects capability names outside the MCP name contract', () => {
+    expect(() => tool('')).toThrow(/Invalid tool name/);
+    expect(() => tool('contains space')).toThrow(/Invalid tool name/);
+    expect(() => tool('a'.repeat(65))).toThrow(/Invalid tool name/);
+  });
+
   it('rejects duplicate capability names', () => {
     expect(() => defineServer({
       manifest: {
