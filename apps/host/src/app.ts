@@ -24,6 +24,8 @@ export interface ApiKeyVerifier {
 export interface HostAuthOptions {
   mode?: HostAuthMode;
   verifier?: ApiKeyVerifier;
+  /** Explicit escape hatch for isolated diagnostics only. Never enable on a shared network host. */
+  allowInsecureNoAuth?: boolean;
 }
 
 export interface HostOptions {
@@ -121,6 +123,9 @@ export function createMcpHost(options: HostOptions): HttpServer {
   if (!hostValidation) {
     throw new Error('allowedHosts is required when binding MCP host to a non-loopback interface');
   }
+  if (!loopback && authMode === 'none' && options.auth?.allowInsecureNoAuth !== true) {
+    throw new Error('Authentication is required on non-loopback MCP hosts; set allowInsecureNoAuth only for isolated diagnostics');
+  }
   if (authMode === 'api-key' && !authVerifier) {
     throw new Error('API key verifier is required when MCP authentication mode is api-key');
   }
@@ -148,18 +153,11 @@ export function createMcpHost(options: HostOptions): HttpServer {
 
     const pathname = new URL(normalizedRequest.url, 'http://mcp.local').pathname;
 
-    // Liveness stays unauthenticated so container/orchestrator probes do not need a credential.
+    // Public liveness stays intentionally minimal so probes need no credential and reveal no server inventory.
     if (pathname === '/health' && normalizedRequest.method === 'GET') {
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({
-        status: 'ok',
-        servers: registry.list().map(definition => ({
-          id: definition.manifest.id,
-          version: definition.manifest.version,
-          endpoint: `/mcp/${definition.manifest.id}`,
-        })),
-      }));
+      res.end(JSON.stringify({ status: 'ok' }));
       return;
     }
 
