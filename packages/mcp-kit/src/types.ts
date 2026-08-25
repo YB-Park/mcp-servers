@@ -96,7 +96,8 @@ export type ToolContent =
   | EmbeddedResourceContent
   | ResourceLinkContent;
 
-export type PromptContent = TextContent | ImageContent | AudioContent | EmbeddedResourceContent;
+// MCP uses the same core ContentBlock union for prompt messages and tool results.
+export type PromptContent = ToolContent;
 
 export interface PromptMessage {
   role: 'user' | 'assistant';
