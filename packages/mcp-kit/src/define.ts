@@ -1,6 +1,8 @@
 import type {
   ObjectSchema,
   PromptDefinition,
+  PromptDefinitionWithArgs,
+  PromptDefinitionWithoutArgs,
   ResourceDefinition,
   Schema,
   ServerDefinition,
@@ -42,6 +44,10 @@ export function defineResource(definition: ResourceDefinition): ResourceDefiniti
   return Object.freeze({ ...definition });
 }
 
+export function definePrompt(definition: PromptDefinitionWithoutArgs): PromptDefinitionWithoutArgs;
+export function definePrompt<TArgsSchema extends ObjectSchema>(
+  definition: PromptDefinitionWithArgs<TArgsSchema>,
+): PromptDefinitionWithArgs<TArgsSchema>;
 export function definePrompt<TArgsSchema extends ObjectSchema>(
   definition: PromptDefinition<TArgsSchema>,
 ): PromptDefinition<TArgsSchema> {
