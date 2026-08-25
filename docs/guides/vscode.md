@@ -1,6 +1,6 @@
 # VS Code Setup
 
-The platform is VS Code-first, but VS Code currently has two relevant MCP configuration surfaces. Keep them distinct because their top-level JSON keys differ.
+The platform is VS Code-first, but VS Code exposes MCP through multiple configuration and distribution surfaces. Keep the framework runtime independent from any one file format so client packaging can evolve without changing server business code.
 
 ## VS Code workspace/user configuration
 
@@ -19,9 +19,9 @@ Use `.vscode/mcp.json` for the normal VS Code workspace flow:
 
 The repository keeps this example at `examples/vscode/mcp.json`.
 
-## Portable Agent Host / Copilot configuration
+## Portable Copilot/plugin configuration
 
-For a configuration that can be read natively by Agent Host and other current Copilot surfaces, use workspace `.mcp.json` (or the corresponding user Copilot configuration) with `mcpServers`:
+Existing Copilot/Claude-compatible plugin surfaces use `.mcp.json` with a top-level `mcpServers` object:
 
 ```json
 {
@@ -35,20 +35,38 @@ For a configuration that can be read natively by Agent Host and other current Co
 }
 ```
 
-The repository keeps this example at `examples/vscode/.mcp.json`.
+The repository keeps this shape at `examples/vscode/.mcp.json`. Do not assume the workspace and portable files are byte-for-byte interchangeable; contract tests pin both examples.
 
-Do not assume the two files are byte-for-byte interchangeable. Contract tests pin both examples so a documentation change cannot silently break one client surface.
+VS Code also supports the newer Agent Plugins 1.0 packaging model, where MCP servers are portable plugin components described from a root `mcp.json` alongside `plugin.json` and optional skills. This repository does not package servers as Agent Plugins yet. Treat that as a future distribution adapter, not a reason to leak plugin-specific concepts into `mcp-kit` server code.
 
-## UX expectations
+## Native VS Code UX first
 
-Server/tool titles and descriptions are user-facing API. Read-only/destructive annotations should improve VS Code confirmation and tool-selection UX, but they are not authorization controls.
+Server/tool titles and descriptions are user-facing API. Read-only/destructive annotations affect confirmation and tool-selection UX, but they are not authorization controls.
 
-VS Code exposes MCP tools, resources, prompts, and apps through its native UI. Prefer those native surfaces over rebuilding equivalent client UI in the platform.
+Use VS Code's native MCP surfaces rather than rebuilding equivalent client UI:
 
-A chat request can currently enable at most 128 tools. The contract suite therefore rejects a single reference server that exceeds that limit; multi-server pressure is a separate catalog/design concern.
+- `MCP: List Servers` for lifecycle and output;
+- `MCP: Browse Resources` for resources;
+- Configure Tools / the tool picker for local chat tool availability;
+- the Agent Customizations Tools section for Copilot-harness tool availability;
+- `Chat: Manage Tool Approval` and `Chat: Reset Tool Confirmations` for tool approvals.
+
+For the Copilot harness running on Agent Host, tool enablement is profile-wide and persists across sessions. Other harnesses use the Chat Configure Tools picker per request/session. Acceptance testing must record which harness was exercised.
+
+## Tool-budget policy
+
+VS Code currently permits at most 128 directly enabled tools in one chat request. It can mitigate larger catalogs with virtual tools via `github.copilot.chat.virtualTools.threshold`, which groups tools and lets the model activate groups on demand.
+
+Our reference-server contract still keeps a single MCP server at or below 128 tools. This is a deliberate VS Code-first quality guardrail, not a claim that catalogs larger than 128 are technically impossible. Small, coherent capability boundaries reduce model choice pressure and remain preferable even when virtual tools are available.
+
+## Trust and diagnostics
+
+Workspace MCP servers have a client-side trust boundary. Reset trust with `MCP: Reset Trust` when validating first-run behavior. When server capabilities change, clear discovery state with `MCP: Reset Cached Tools`.
+
+For failures, use `MCP: List Servers` and Show Output. A release is not VS Code-compatible merely because protocol calls succeed; failure state and recovery must also be understandable to a user.
 
 ## Acceptance
 
 MCP conformance does not by itself prove the VS Code user experience. Release candidates use the reproducible checklist in [`vscode-acceptance.md`](./vscode-acceptance.md).
 
-The checklist deliberately starts by resetting trust and cached tools, records the exact VS Code version/commit/configuration surface, exercises tools/resources/prompts, and verifies that MCP Output is actionable when the host is unavailable.
+The checklist starts from clean trust/tool-approval/cache state, records the exact VS Code build and harness, exercises tools/resources/prompts, and verifies actionable diagnostics and recovery.
