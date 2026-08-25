@@ -18,4 +18,5 @@ COPY --from=build /app/packages ./packages
 COPY --from=build /app/servers ./servers
 COPY --from=build /app/apps ./apps
 EXPOSE 3000
+USER node
 CMD ["node", "apps/host/dist/index.js"]
