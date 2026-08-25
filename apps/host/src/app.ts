@@ -162,22 +162,16 @@ export function createMcpHost(options: HostOptions): HttpServer {
     }
 
     const match = /^\/mcp\/([a-z][a-z0-9-]*)$/.exec(pathname);
-    if (!match) {
+    const serverId = match?.[1];
+    if (!serverId) {
       res.statusCode = 404;
       res.setHeader('content-type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'not_found' }));
       return;
     }
 
-    const serverId = match[1];
-    const handler = serverId ? nodeHandlers.get(serverId) : undefined;
-    if (!handler || !serverId) {
-      res.statusCode = 404;
-      res.setHeader('content-type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({ error: 'unknown_mcp_server', serverId }));
-      return;
-    }
-
+    // Authenticate before resolving the registered server so unauthenticated callers
+    // cannot enumerate MCP module ids by comparing 401 and 404 responses.
     if (authMode === 'api-key') {
       const token = bearerToken(normalizedRequest);
       if (!token) {
@@ -198,6 +192,14 @@ export function createMcpHost(options: HostOptions): HttpServer {
         return;
       }
       normalizedRequest.auth = forwardedAuth(token, key);
+    }
+
+    const handler = nodeHandlers.get(serverId);
+    if (!handler) {
+      res.statusCode = 404;
+      res.setHeader('content-type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'unknown_mcp_server', serverId }));
+      return;
     }
 
     await handler(normalizedRequest, res);
