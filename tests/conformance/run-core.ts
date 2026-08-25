@@ -1,11 +1,18 @@
 import { spawn } from 'node:child_process';
-import { rm, mkdir } from 'node:fs/promises';
+import { mkdir, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { startMcpHost } from '@mcp-platform/host';
 import { conformanceFixtureServer } from './fixture.js';
 
-const CONFORMANCE_VERSION = '0.2.0-alpha.11';
+const packageJson = JSON.parse(
+  await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+) as { devDependencies?: Record<string, string> };
+const CONFORMANCE_VERSION = packageJson.devDependencies?.['@modelcontextprotocol/conformance'];
 const SPEC_VERSION = '2026-07-28';
+
+if (!CONFORMANCE_VERSION) {
+  throw new Error('@modelcontextprotocol/conformance must be pinned in root devDependencies');
+}
 
 const scenarios = [
   'tools-list',
@@ -31,10 +38,10 @@ const scenarios = [
 ] as const;
 
 function runScenario(url: string, scenario: string, outputDir: string): Promise<number> {
-  const executable = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  const executable = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
   const args = [
-    '--yes',
-    `@modelcontextprotocol/conformance@${CONFORMANCE_VERSION}`,
+    'exec',
+    'conformance',
     'server',
     '--url',
     url,
