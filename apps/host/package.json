@@ -18,6 +18,7 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@mcp-platform/auth": "workspace:*",
     "@mcp-platform/mcp-kit": "workspace:*",
     "@mcp-platform/runtime": "workspace:*",
     "@mcp-server/example": "workspace:*",
