@@ -76,6 +76,12 @@ Then another PC can register, for example:
 
 Non-browser MCP clients such as VS Code Desktop normally omit `Origin`. If a browser-based client is required, set `MCP_ALLOWED_ORIGINS` to the allowed **origin hostnames**. On non-loopback bindings, Origin-bearing requests are rejected by default unless explicitly allowed.
 
+## Security baseline
+
+`MCP_ALLOWED_HOSTS` and `MCP_ALLOWED_ORIGINS` are request-origin/DNS-rebinding defenses, **not authentication or authorization**. The v0.1 bootstrap intentionally does not ship its own IAM or token-management system.
+
+Keep an unauthenticated deployment on a trusted internal network. Do not expose the host directly to the public internet. Before carrying OAuth/bearer credentials or crossing an untrusted network, terminate TLS and enforce authentication/authorization at the planned auth/gateway boundary. Raw SDK access tokens are never propagated into tool `ExecutionContext`.
+
 ## Docker
 
 Local Docker smoke:
@@ -90,7 +96,7 @@ For a central Docker host, pass the hostnames/IPs clients will use:
 MCP_ALLOWED_HOSTS=mcp-server.company.local,10.0.0.25 docker compose up --build -d
 ```
 
-Use `MCP_PUBLISHED_PORT` if port 3000 is unavailable on the Docker host. `MCP_ALLOWED_ORIGINS` is optional and follows the same secure browser-Origin behavior described above.
+Use `MCP_PUBLISHED_PORT` if port 3000 is unavailable on the Docker host. `MCP_ALLOWED_ORIGINS` is optional and follows the same secure browser-Origin behavior described above. The runtime image runs as the non-root `node` user.
 
 ## Add another MCP server
 
