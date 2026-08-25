@@ -168,17 +168,30 @@ export type PromptRenderResult =
   | { text: string }
   | { messages: readonly PromptMessage[] };
 
-export interface PromptDefinition<TArgsSchema extends ObjectSchema = ObjectSchema> {
+interface PromptDefinitionBase {
   kind: 'prompt';
   name: string;
   title: string;
   description: string;
+}
+
+export interface PromptDefinitionWithoutArgs extends PromptDefinitionBase {
+  argsSchema?: never;
+  render(context: ExecutionContext): Promise<PromptRenderResult> | PromptRenderResult;
+}
+
+export interface PromptDefinitionWithArgs<TArgsSchema extends ObjectSchema = ObjectSchema>
+  extends PromptDefinitionBase {
   argsSchema: TArgsSchema;
   render(
     args: ObjectSchemaOutput<TArgsSchema>,
     context: ExecutionContext,
   ): Promise<PromptRenderResult> | PromptRenderResult;
 }
+
+export type PromptDefinition<TArgsSchema extends ObjectSchema = ObjectSchema> =
+  | PromptDefinitionWithoutArgs
+  | PromptDefinitionWithArgs<TArgsSchema>;
 
 export interface ServerManifest {
   id: string;
