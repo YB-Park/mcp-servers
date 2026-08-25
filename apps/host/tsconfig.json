@@ -8,7 +8,6 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "references": [
-    { "path": "../../packages/auth" },
     { "path": "../../packages/runtime" },
     { "path": "../../servers/example" }
   ],
