@@ -1,0 +1,10 @@
+services:
+  mcp-host:
+    build: .
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: 3000
+      MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+    ports:
+      - "${MCP_PUBLISHED_PORT:-3000}:3000"
