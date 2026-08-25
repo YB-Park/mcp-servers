@@ -42,6 +42,8 @@ The public API supports tools first while reserving first-class shapes for resou
 
 Do not model identity as only `userId`. The long-term contract may need subject, actor, claims, and delegation. Authentication answers who/what is calling; authorization answers what that identity may do. The first bootstrap does not implement an IAM system.
 
+SDK credentials are an adapter concern, not business context. Raw access tokens and arbitrary provider-private auth payloads must never be copied into `ExecutionContext`; the runtime maps only non-secret identity/authorization metadata across that boundary. Future IdP/OAuth/EMA integrations should enrich the same framework identity contract rather than exposing transport credentials to tools.
+
 ## VS Code UX
 
 Use VS Code-native MCP UX wherever available: server configuration, trust, enable/disable, tool selection, prompts/resources, diagnostics, and future registry/distribution surfaces. The future control plane should fill server-side operational gaps rather than rebuild VS Code.
