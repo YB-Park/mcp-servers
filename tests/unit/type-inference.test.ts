@@ -1,4 +1,4 @@
-import { definePrompt, defineTool } from '@mcp-platform/mcp-kit';
+import { definePrompt, defineTool, type ExecutionContext } from '@mcp-platform/mcp-kit';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import * as z from 'zod/v4';
 
@@ -28,9 +28,21 @@ const inferredPrompt = definePrompt({
   argsSchema: z.object({
     topic: z.string(),
   }),
-  render(args) {
+  render(args, context) {
     expectTypeOf(args).toEqualTypeOf<{ topic: string }>();
+    expectTypeOf(context).toEqualTypeOf<ExecutionContext>();
     return { text: args.topic };
+  },
+});
+
+const noArgsPrompt = definePrompt({
+  kind: 'prompt',
+  name: 'typed-no-args-prompt',
+  title: 'Typed no-args prompt',
+  description: 'Compile-time fixture proving no-argument prompts receive only execution context.',
+  render(context) {
+    expectTypeOf(context).toEqualTypeOf<ExecutionContext>();
+    return { text: context.serverId };
   },
 });
 
@@ -38,5 +50,7 @@ describe('mcp-kit schema inference', () => {
   it('keeps inferred definitions usable at runtime', () => {
     expect(inferredTool.name).toBe('typed-tool');
     expect(inferredPrompt.name).toBe('typed-prompt');
+    expect(noArgsPrompt.name).toBe('typed-no-args-prompt');
+    expect(noArgsPrompt.argsSchema).toBeUndefined();
   });
 });
