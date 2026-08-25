@@ -12,9 +12,8 @@ const running = await startMcpHost({
 try {
   const health = await fetch(`${running.baseUrl}/health`);
   assert.equal(health.status, 200);
-  const body = await health.json() as { status: string; servers: Array<{ id: string }> };
-  assert.equal(body.status, 'ok');
-  assert.equal(body.servers[0]?.id, 'example');
+  const body = await health.json() as { status: string };
+  assert.deepEqual(body, { status: 'ok' });
 
   const missing = await fetch(`${running.baseUrl}/mcp/missing`);
   assert.equal(missing.status, 404);
