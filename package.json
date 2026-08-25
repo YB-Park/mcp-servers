@@ -21,7 +21,6 @@
     "auth:key": "pnpm build && node apps/host/dist/auth-cli.js"
   },
   "devDependencies": {
-    "@mcp-platform/auth": "workspace:*",
     "@mcp-platform/host": "workspace:*",
     "@mcp-platform/mcp-kit": "workspace:*",
     "@mcp-platform/runtime": "workspace:*",
