@@ -11,7 +11,9 @@ import type {
 } from './types.js';
 
 const SERVER_ID = /^[a-z][a-z0-9-]*$/;
-const CAPABILITY_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+// MCP capability names are 1-64 characters from A-Z, a-z, 0-9, _, -, ., and /.
+// Keep the framework validator aligned with the protocol rather than narrowing legal MCP names.
+const CAPABILITY_NAME = /^[A-Za-z0-9_./-]{1,64}$/;
 
 function assertUnique(kind: string, names: readonly string[]): void {
   const seen = new Set<string>();
