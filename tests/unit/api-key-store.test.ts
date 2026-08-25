@@ -41,6 +41,20 @@ describe('FileApiKeyStore', () => {
     expect(persisted).toContain('tokenHash');
   });
 
+  it('preserves explicit empty scope/server lists as deny-all restrictions', async () => {
+    const fixture = await store();
+    const issued = await fixture.store.create({
+      label: 'Deny all',
+      scopes: [],
+      serverIds: [],
+    });
+
+    expect(await fixture.store.verify(issued.token)).toMatchObject({
+      scopes: [],
+      serverIds: [],
+    });
+  });
+
   it('rejects expired and revoked keys', async () => {
     const fixture = await store();
     const expired = await fixture.store.create({
@@ -85,6 +99,7 @@ describe('FileApiKeyStore', () => {
       scopes: ['mcp', 'database:read'],
       serverIds: ['example', 'database'],
     });
+    await expect(fixture.store.rotate(original.key.id)).rejects.toThrow(/already been rotated/);
   });
 
   it('immediately revokes the previous key on zero-grace rotation', async () => {
