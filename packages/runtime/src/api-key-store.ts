@@ -77,9 +77,8 @@ function cloneMetadata(key: StoredApiKey): ApiKeyMetadata {
 }
 
 function normalizeList(values: readonly string[] | undefined): string[] | undefined {
-  if (!values) return undefined;
-  const normalized = [...new Set(values.map(value => value.trim()).filter(Boolean))];
-  return normalized.length ? normalized : undefined;
+  if (values === undefined) return undefined;
+  return [...new Set(values.map(value => value.trim()).filter(Boolean))];
 }
 
 function validateCreateInput(input: CreateApiKeyInput): void {
@@ -230,6 +229,7 @@ export class FileApiKeyStore {
       const previous = document.keys.find(candidate => candidate.id === id);
       if (!previous) throw new ApiKeyStoreError(`API key not found: ${id}`);
       if (previous.revokedAt) throw new ApiKeyStoreError(`API key is already revoked: ${id}`);
+      if (previous.replacedBy) throw new ApiKeyStoreError(`API key has already been rotated: ${id}`);
 
       const now = new Date();
       if (previous.expiresAt && Date.parse(previous.expiresAt) <= now.getTime()) {
