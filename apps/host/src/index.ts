@@ -23,6 +23,7 @@ const allowedHosts = list(process.env.MCP_ALLOWED_HOSTS);
 const allowedOrigins = list(process.env.MCP_ALLOWED_ORIGINS);
 const mode = authMode(process.env.MCP_AUTH_MODE, bindHost);
 const authStorePath = process.env.MCP_AUTH_STORE ?? '.data/auth-keys.json';
+const allowInsecureNoAuth = process.env.MCP_ALLOW_INSECURE_NO_AUTH === 'true';
 const keyStore = mode === 'api-key' ? new FileApiKeyStore(authStorePath) : undefined;
 
 const running = await startMcpHost({
@@ -34,11 +35,15 @@ const running = await startMcpHost({
   auth: {
     mode,
     ...(keyStore ? { verifier: keyStore } : {}),
+    ...(allowInsecureNoAuth ? { allowInsecureNoAuth: true } : {}),
   },
 });
 
 console.error(`MCP host listening on ${running.baseUrl}`);
 console.error(`Authentication: ${mode}${keyStore ? ` (${authStorePath})` : ''}`);
+if (mode === 'none' && !isLoopback(bindHost)) {
+  console.error('WARNING: non-loopback MCP host is running without authentication by explicit override.');
+}
 for (const definition of serverDefinitions) {
   console.error(`- ${definition.manifest.id}: ${running.baseUrl}/mcp/${definition.manifest.id}`);
 }
