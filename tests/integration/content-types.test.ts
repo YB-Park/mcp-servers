@@ -73,7 +73,6 @@ const richPrompt = definePrompt({
   name: 'rich-prompt',
   title: 'Rich prompt',
   description: 'Return multimodal prompt messages through the framework-neutral content contract.',
-  argsSchema: z.object({}),
   render() {
     return {
       messages: [
@@ -144,9 +143,9 @@ describe.each(protocolTestModes)('core content contract (%s)', mode => {
     });
   });
 
-  it('preserves multimodal prompt messages', async () => {
+  it('preserves multimodal prompt messages when arguments are omitted', async () => {
     await withMcpTestClient(contentServer, mode, async ({ client }) => {
-      const prompt = await client.getPrompt({ name: 'rich-prompt', arguments: {} });
+      const prompt = await client.getPrompt({ name: 'rich-prompt' });
       expect(prompt.messages).toEqual(expect.arrayContaining([
         expect.objectContaining({
           role: 'user',
