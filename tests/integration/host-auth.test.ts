@@ -1,20 +1,57 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { defineServer, defineTool } from '@mcp-platform/mcp-kit';
 import { startMcpHost } from '@mcp-platform/host';
 import { FileApiKeyStore } from '@mcp-platform/runtime';
 import { protocolTestModes, withMcpHttpTestClient } from '@mcp-platform/testing';
 import { exampleServer } from '@mcp-server/example';
 import { afterEach, describe, expect, it } from 'vitest';
+import * as z from 'zod/v4';
 
 const directories: string[] = [];
+
+const whoAmITool = defineTool({
+  kind: 'tool',
+  name: 'whoami',
+  title: 'Who am I',
+  description: 'Return sanitized identity metadata for authentication integration testing.',
+  inputSchema: z.object({}),
+  outputSchema: z.object({
+    subject: z.string().nullable(),
+    actor: z.string().nullable(),
+  }),
+  annotations: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+  run(_input, context) {
+    const structuredContent = {
+      subject: context.identity.subject ?? null,
+      actor: context.identity.actor ?? null,
+    };
+    return { text: JSON.stringify(structuredContent), structuredContent };
+  },
+});
+
+const authFixtureServer = defineServer({
+  manifest: {
+    id: 'auth-fixture',
+    title: 'Auth fixture',
+    version: '1.0.0',
+    description: 'Authentication integration fixture.',
+  },
+  tools: [whoAmITool],
+});
 
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), 'mcp-host-auth-'));
   directories.push(directory);
   const store = new FileApiKeyStore(join(directory, 'keys.json'));
   const running = await startMcpHost({
-    servers: [exampleServer],
+    servers: [exampleServer, authFixtureServer],
     port: 0,
     auth: { mode: 'api-key', verifier: store },
   });
@@ -71,6 +108,28 @@ describe('managed API key host authentication', () => {
           expect(result.content).toEqual(expect.arrayContaining([
             expect.objectContaining({ type: 'text', text: expect.stringContaining('auth') }),
           ]));
+        },
+        { bearerToken: issued.token },
+      );
+    } finally {
+      await running.close();
+    }
+  });
+
+  it.each(protocolTestModes)('propagates only sanitized API-key identity metadata (%s)', async mode => {
+    const { store, running } = await fixture();
+    try {
+      const issued = await store.create({ label: 'Identity test', subject: 'employee-123' });
+      await withMcpHttpTestClient(
+        `${running.baseUrl}/mcp/auth-fixture`,
+        mode,
+        async ({ client }) => {
+          const result = await client.callTool({ name: 'whoami', arguments: {} });
+          expect(result.structuredContent).toEqual({
+            subject: 'employee-123',
+            actor: `api-key:${issued.key.id}`,
+          });
+          expect(JSON.stringify(result)).not.toContain(issued.token);
         },
         { bearerToken: issued.token },
       );
