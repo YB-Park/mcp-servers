@@ -1,4 +1,4 @@
-import { FileApiKeyStore, type ApiKeyMetadata } from '@mcp-platform/auth';
+import { FileApiKeyStore, type ApiKeyMetadata } from '@mcp-platform/runtime';
 
 interface ParsedArgs {
   command?: string;
@@ -90,11 +90,14 @@ try {
   switch (args.command) {
     case 'create': {
       const expiresInDays = integer(args, 'expires-in-days');
+      const subject = one(args, 'subject')?.trim();
+      const scopes = csv(args, 'scopes');
+      const serverIds = csv(args, 'servers');
       const issued = await store.create({
         label: required(args, 'label'),
-        ...(one(args, 'subject')?.trim() ? { subject: one(args, 'subject')!.trim() } : {}),
-        ...(csv(args, 'scopes') ? { scopes: csv(args, 'scopes')! } : {}),
-        ...(csv(args, 'servers') ? { serverIds: csv(args, 'servers')! } : {}),
+        ...(subject ? { subject } : {}),
+        ...(scopes ? { scopes } : {}),
+        ...(serverIds ? { serverIds } : {}),
         ...(expiresInDays !== undefined
           ? { expiresAt: new Date(Date.now() + expiresInDays * 86_400_000) }
           : {}),
