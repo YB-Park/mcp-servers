@@ -92,6 +92,16 @@ const richPrompt = definePrompt({
             },
           },
         },
+        {
+          role: 'user',
+          content: {
+            type: 'resource_link',
+            uri: 'test://prompt-linked',
+            name: 'prompt-linked-resource',
+            title: 'Prompt linked resource',
+            mimeType: 'text/plain',
+          },
+        },
       ],
     };
   },
@@ -143,7 +153,7 @@ describe.each(protocolTestModes)('core content contract (%s)', mode => {
     });
   });
 
-  it('preserves multimodal prompt messages when arguments are omitted', async () => {
+  it('preserves every prompt ContentBlock when arguments are omitted', async () => {
     await withMcpTestClient(contentServer, mode, async ({ client }) => {
       const prompt = await client.getPrompt({ name: 'rich-prompt' });
       expect(prompt.messages).toEqual(expect.arrayContaining([
@@ -160,6 +170,14 @@ describe.each(protocolTestModes)('core content contract (%s)', mode => {
           content: expect.objectContaining({
             type: 'resource',
             resource: expect.objectContaining({ uri: 'test://prompt-resource', text: 'prompt resource' }),
+          }),
+        }),
+        expect.objectContaining({
+          role: 'user',
+          content: expect.objectContaining({
+            type: 'resource_link',
+            uri: 'test://prompt-linked',
+            name: 'prompt-linked-resource',
           }),
         }),
       ]));
