@@ -43,17 +43,18 @@ function normalizeIncomingRequest(req: IncomingMessage): NormalizedIncomingReque
 
 export function createMcpHost(options: HostOptions): HttpServer {
   const bindHost = options.bindHost ?? '127.0.0.1';
+  const loopback = isLoopback(bindHost);
   const validateHost = options.allowedHosts?.length
     ? hostHeaderValidation([...options.allowedHosts])
-    : isLoopback(bindHost)
+    : loopback
       ? localhostHostValidation()
       : undefined;
 
   const validateOrigin = options.allowedOrigins?.length
     ? originValidation([...options.allowedOrigins])
-    : isLoopback(bindHost)
+    : loopback
       ? localhostOriginValidation()
-      : undefined;
+      : originValidation([]);
 
   if (!validateHost) {
     throw new Error('allowedHosts is required when binding MCP host to a non-loopback interface');
@@ -80,7 +81,7 @@ export function createMcpHost(options: HostOptions): HttpServer {
     }
 
     if (!validateHost(normalizedRequest, res)) return;
-    if (validateOrigin && !validateOrigin(normalizedRequest, res)) return;
+    if (!validateOrigin(normalizedRequest, res)) return;
 
     const pathname = new URL(normalizedRequest.url, 'http://mcp.local').pathname;
 
