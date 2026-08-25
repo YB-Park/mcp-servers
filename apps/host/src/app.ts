@@ -106,7 +106,7 @@ export function createMcpHost(options: HostOptions): HttpServer {
   const authMode = options.auth?.mode ?? (loopback ? 'none' : 'api-key');
   const authVerifier = options.auth?.verifier;
 
-  const validateHost = options.allowedHosts?.length
+  const hostValidation = options.allowedHosts?.length
     ? hostHeaderValidation([...options.allowedHosts])
     : loopback
       ? localhostHostValidation()
@@ -118,12 +118,13 @@ export function createMcpHost(options: HostOptions): HttpServer {
       ? localhostOriginValidation()
       : originValidation([]);
 
-  if (!validateHost) {
+  if (!hostValidation) {
     throw new Error('allowedHosts is required when binding MCP host to a non-loopback interface');
   }
   if (authMode === 'api-key' && !authVerifier) {
     throw new Error('API key verifier is required when MCP authentication mode is api-key');
   }
+  const validateHost = hostValidation;
 
   const registry = new ServerRegistry(options.servers);
   const nodeHandlers = new Map(
