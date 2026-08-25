@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { FileApiKeyStore } from '@mcp-platform/auth';
+import { FileApiKeyStore } from '@mcp-platform/runtime';
 import { afterEach, describe, expect, it } from 'vitest';
 
 const directories: string[] = [];
