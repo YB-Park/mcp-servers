@@ -1,7 +1,7 @@
 import { FileApiKeyStore, type ApiKeyMetadata } from '@mcp-platform/runtime';
 
 interface ParsedArgs {
-  command?: string;
+  command: string | undefined;
   positionals: string[];
   options: Map<string, string[]>;
 }
