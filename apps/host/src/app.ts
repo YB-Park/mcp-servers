@@ -1,8 +1,12 @@
 import { createServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { apiKeyAllowsServer, type ApiKeyMetadata } from '@mcp-platform/auth';
 import type { ServerDefinition } from '@mcp-platform/mcp-kit';
-import { createServerHandler, ServerRegistry } from '@mcp-platform/runtime';
+import {
+  apiKeyAllowsServer,
+  createServerHandler,
+  type ApiKeyMetadata,
+  ServerRegistry,
+} from '@mcp-platform/runtime';
 import {
   hostHeaderValidation,
   localhostHostValidation,
@@ -57,9 +61,7 @@ function isLoopback(host: string): boolean {
 }
 
 function normalizeIncomingRequest(req: IncomingMessage): NormalizedIncomingRequest | undefined {
-  if (!req.method || !req.url) {
-    return undefined;
-  }
+  if (!req.method || !req.url) return undefined;
   return req as NormalizedIncomingRequest;
 }
 
@@ -70,8 +72,7 @@ function headerValue(value: string | string[] | undefined): string | undefined {
 function bearerToken(req: NormalizedIncomingRequest): string | undefined {
   const authorization = headerValue(req.headers.authorization);
   if (!authorization) return undefined;
-  const match = /^Bearer\s+([^\s]+)$/i.exec(authorization.trim());
-  return match?.[1];
+  return /^Bearer\s+([^\s]+)$/i.exec(authorization.trim())?.[1];
 }
 
 function unauthorized(res: import('node:http').ServerResponse, reason: string): void {
@@ -94,7 +95,7 @@ function forwardedAuth(token: string, key: ApiKeyMetadata): ForwardedAuthInfo {
     token,
     clientId: `api-key:${key.id}`,
     scopes: [...key.scopes],
-    ...(Number.isFinite(expiresAt) ? { expiresAt } : {}),
+    ...(expiresAt !== undefined && Number.isFinite(expiresAt) ? { expiresAt } : {}),
     extra: { sub: subject },
   };
 }
@@ -104,10 +105,6 @@ export function createMcpHost(options: HostOptions): HttpServer {
   const loopback = isLoopback(bindHost);
   const authMode = options.auth?.mode ?? (loopback ? 'none' : 'api-key');
   const authVerifier = options.auth?.verifier;
-
-  if (authMode === 'api-key' && !authVerifier) {
-    throw new Error('API key verifier is required when MCP authentication mode is api-key');
-  }
 
   const validateHost = options.allowedHosts?.length
     ? hostHeaderValidation([...options.allowedHosts])
@@ -123,6 +120,9 @@ export function createMcpHost(options: HostOptions): HttpServer {
 
   if (!validateHost) {
     throw new Error('allowedHosts is required when binding MCP host to a non-loopback interface');
+  }
+  if (authMode === 'api-key' && !authVerifier) {
+    throw new Error('API key verifier is required when MCP authentication mode is api-key');
   }
 
   const registry = new ServerRegistry(options.servers);
