@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { FileApiKeyStore } from '@mcp-platform/auth';
 import { startMcpHost } from '@mcp-platform/host';
+import { FileApiKeyStore } from '@mcp-platform/runtime';
 import { protocolTestModes, withMcpHttpTestClient } from '@mcp-platform/testing';
 import { exampleServer } from '@mcp-server/example';
 import { afterEach, describe, expect, it } from 'vitest';
