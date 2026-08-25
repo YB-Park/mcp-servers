@@ -55,6 +55,17 @@ describe('FileApiKeyStore', () => {
     expect(await fixture.store.verify(active.token)).toBeUndefined();
   });
 
+  it('does not allow rotation to revive an expired key', async () => {
+    const fixture = await store();
+    const expired = await fixture.store.create({
+      label: 'Expired rotation source',
+      expiresAt: new Date(Date.now() - 1_000),
+    });
+
+    await expect(fixture.store.rotate(expired.key.id)).rejects.toThrow(/expired and cannot be rotated/);
+    expect((await fixture.store.list()).map(key => key.id)).toEqual([expired.key.id]);
+  });
+
   it('rotates a key and can keep the previous key alive for a grace window', async () => {
     const fixture = await store();
     const original = await fixture.store.create({
