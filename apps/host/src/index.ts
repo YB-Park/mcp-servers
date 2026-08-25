@@ -1,4 +1,4 @@
-import { FileApiKeyStore } from '@mcp-platform/auth';
+import { FileApiKeyStore } from '@mcp-platform/runtime';
 import { startMcpHost, type HostAuthMode } from './app.js';
 import { serverDefinitions } from './registry.js';
 
