@@ -13,6 +13,8 @@ export type {
   ObjectSchemaOutput,
   PromptContent,
   PromptDefinition,
+  PromptDefinitionWithArgs,
+  PromptDefinitionWithoutArgs,
   PromptMessage,
   PromptRenderResult,
   ResourceContent,
