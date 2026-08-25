@@ -12,12 +12,14 @@ Prefer small deterministic capabilities. If a useful higher-level operation can 
 
 Every tool should have:
 
-- stable kebab-case or snake_case name (choose one convention per server; the bootstrap examples use snake_case)
+- a stable name; prefer kebab-case or snake_case within one server for human consistency, while the framework preserves the full MCP-legal 1-64 character name space (`A-Z`, `a-z`, `0-9`, `_`, `-`, `.`, `/`)
 - concise user-facing title
 - description that tells an agent when to use it
 - explicit input schema with useful field descriptions
 - structured output when callers benefit from machine-readable data
 - accurate read-only/destructive/idempotent/open-world hints when relevant
+
+Naming style is a project convention, not a protocol restriction. Do not narrow valid MCP names in framework validation merely to enforce style.
 
 Annotations are UX hints, never authorization policy.
 
