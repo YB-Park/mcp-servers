@@ -17,7 +17,8 @@
     "test:smoke": "tsx tests/smoke/http.ts",
     "test:conformance": "tsx tests/conformance/run-core.ts",
     "check": "pnpm build && pnpm test:unit && pnpm test:contract && pnpm test:integration && pnpm test:smoke",
-    "dev": "pnpm build && pnpm --filter @mcp-platform/host dev"
+    "dev": "pnpm build && pnpm --filter @mcp-platform/host dev",
+    "auth:key": "pnpm build && node apps/host/dist/auth-cli.js"
   },
   "devDependencies": {
     "@mcp-platform/host": "workspace:*",

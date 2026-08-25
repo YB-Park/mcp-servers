@@ -1,7 +1,12 @@
 import { createServer, type IncomingMessage, type Server as HttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { ServerDefinition } from '@mcp-platform/mcp-kit';
-import { createServerHandler, ServerRegistry } from '@mcp-platform/runtime';
+import {
+  apiKeyAllowsServer,
+  createServerHandler,
+  type ApiKeyMetadata,
+  ServerRegistry,
+} from '@mcp-platform/runtime';
 import {
   hostHeaderValidation,
   localhostHostValidation,
@@ -10,11 +15,25 @@ import {
   toNodeHandler,
 } from '@modelcontextprotocol/node';
 
+export type HostAuthMode = 'none' | 'api-key';
+
+export interface ApiKeyVerifier {
+  verify(token: string): Promise<ApiKeyMetadata | undefined>;
+}
+
+export interface HostAuthOptions {
+  mode?: HostAuthMode;
+  verifier?: ApiKeyVerifier;
+  /** Explicit escape hatch for isolated diagnostics only. Never enable on a shared network host. */
+  allowInsecureNoAuth?: boolean;
+}
+
 export interface HostOptions {
   servers: readonly ServerDefinition[];
   bindHost?: string;
   allowedHosts?: readonly string[];
   allowedOrigins?: readonly string[];
+  auth?: HostAuthOptions;
 }
 
 export interface RunningHost {
@@ -25,26 +44,71 @@ export interface RunningHost {
   close(): Promise<void>;
 }
 
-type NormalizedIncomingRequest = IncomingMessage & { method: string; url: string };
+type ForwardedAuthInfo = {
+  token: string;
+  clientId: string;
+  scopes: string[];
+  expiresAt?: number;
+  extra?: Record<string, unknown>;
+};
+
+type NormalizedIncomingRequest = IncomingMessage & {
+  method: string;
+  url: string;
+  auth?: ForwardedAuthInfo;
+};
 
 function isLoopback(host: string): boolean {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1';
 }
 
 function normalizeIncomingRequest(req: IncomingMessage): NormalizedIncomingRequest | undefined {
-  // Node's IncomingMessage types allow method/url to be absent, while a real
-  // inbound HTTP server request should carry both and MCP's node adapter
-  // requires them. Reject malformed input instead of weakening strict types.
-  if (!req.method || !req.url) {
-    return undefined;
-  }
+  if (!req.method || !req.url) return undefined;
   return req as NormalizedIncomingRequest;
+}
+
+function headerValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? undefined : value;
+}
+
+function bearerToken(req: NormalizedIncomingRequest): string | undefined {
+  const authorization = headerValue(req.headers.authorization);
+  if (!authorization) return undefined;
+  return /^Bearer\s+([^\s]+)$/i.exec(authorization.trim())?.[1];
+}
+
+function unauthorized(res: import('node:http').ServerResponse, reason: string): void {
+  res.statusCode = 401;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.setHeader('www-authenticate', 'Bearer realm="mcp-platform"');
+  res.end(JSON.stringify({ error: 'unauthorized', reason }));
+}
+
+function forbidden(res: import('node:http').ServerResponse, reason: string): void {
+  res.statusCode = 403;
+  res.setHeader('content-type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify({ error: 'forbidden', reason }));
+}
+
+function forwardedAuth(token: string, key: ApiKeyMetadata): ForwardedAuthInfo {
+  const subject = key.subject ?? `api-key:${key.id}`;
+  const expiresAt = key.expiresAt ? Math.floor(Date.parse(key.expiresAt) / 1000) : undefined;
+  return {
+    token,
+    clientId: `api-key:${key.id}`,
+    scopes: [...key.scopes],
+    ...(expiresAt !== undefined && Number.isFinite(expiresAt) ? { expiresAt } : {}),
+    extra: { sub: subject },
+  };
 }
 
 export function createMcpHost(options: HostOptions): HttpServer {
   const bindHost = options.bindHost ?? '127.0.0.1';
   const loopback = isLoopback(bindHost);
-  const validateHost = options.allowedHosts?.length
+  const authMode = options.auth?.mode ?? (loopback ? 'none' : 'api-key');
+  const authVerifier = options.auth?.verifier;
+
+  const hostValidation = options.allowedHosts?.length
     ? hostHeaderValidation([...options.allowedHosts])
     : loopback
       ? localhostHostValidation()
@@ -56,13 +120,17 @@ export function createMcpHost(options: HostOptions): HttpServer {
       ? localhostOriginValidation()
       : originValidation([]);
 
-  if (!validateHost) {
+  if (!hostValidation) {
     throw new Error('allowedHosts is required when binding MCP host to a non-loopback interface');
   }
+  if (!loopback && authMode === 'none' && options.auth?.allowInsecureNoAuth !== true) {
+    throw new Error('Authentication is required on non-loopback MCP hosts; set allowInsecureNoAuth only for isolated diagnostics');
+  }
+  if (authMode === 'api-key' && !authVerifier) {
+    throw new Error('API key verifier is required when MCP authentication mode is api-key');
+  }
+  const validateHost = hostValidation;
 
-  // Build MCP handlers only after host security configuration has been accepted.
-  // This avoids constructing protocol resources for a host configuration that
-  // will be rejected before the HTTP server is returned.
   const registry = new ServerRegistry(options.servers);
   const nodeHandlers = new Map(
     registry.list().map(definition => [
@@ -71,7 +139,7 @@ export function createMcpHost(options: HostOptions): HttpServer {
     ] as const),
   );
 
-  return createServer((req, res) => {
+  async function handleRequest(req: IncomingMessage, res: import('node:http').ServerResponse): Promise<void> {
     const normalizedRequest = normalizeIncomingRequest(req);
     if (!normalizedRequest) {
       res.statusCode = 400;
@@ -85,30 +153,48 @@ export function createMcpHost(options: HostOptions): HttpServer {
 
     const pathname = new URL(normalizedRequest.url, 'http://mcp.local').pathname;
 
+    // Public liveness stays intentionally minimal so probes need no credential and reveal no server inventory.
     if (pathname === '/health' && normalizedRequest.method === 'GET') {
       res.statusCode = 200;
       res.setHeader('content-type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({
-        status: 'ok',
-        servers: registry.list().map(definition => ({
-          id: definition.manifest.id,
-          version: definition.manifest.version,
-          endpoint: `/mcp/${definition.manifest.id}`,
-        })),
-      }));
+      res.end(JSON.stringify({ status: 'ok' }));
       return;
     }
 
     const match = /^\/mcp\/([a-z][a-z0-9-]*)$/.exec(pathname);
-    if (!match) {
+    const serverId = match?.[1];
+    if (!serverId) {
       res.statusCode = 404;
       res.setHeader('content-type', 'application/json; charset=utf-8');
       res.end(JSON.stringify({ error: 'not_found' }));
       return;
     }
 
-    const serverId = match[1];
-    const handler = serverId ? nodeHandlers.get(serverId) : undefined;
+    // Authenticate before resolving the registered server so unauthenticated callers
+    // cannot enumerate MCP module ids by comparing 401 and 404 responses.
+    if (authMode === 'api-key') {
+      const token = bearerToken(normalizedRequest);
+      if (!token) {
+        unauthorized(res, 'missing_or_malformed_bearer_token');
+        return;
+      }
+      const key = await authVerifier!.verify(token);
+      if (!key) {
+        unauthorized(res, 'invalid_or_expired_api_key');
+        return;
+      }
+      if (!key.scopes.includes('mcp')) {
+        forbidden(res, 'api_key_missing_mcp_scope');
+        return;
+      }
+      if (!apiKeyAllowsServer(key, serverId)) {
+        forbidden(res, 'api_key_not_allowed_for_server');
+        return;
+      }
+      normalizedRequest.auth = forwardedAuth(token, key);
+    }
+
+    const handler = nodeHandlers.get(serverId);
     if (!handler) {
       res.statusCode = 404;
       res.setHeader('content-type', 'application/json; charset=utf-8');
@@ -116,7 +202,19 @@ export function createMcpHost(options: HostOptions): HttpServer {
       return;
     }
 
-    void handler(normalizedRequest, res);
+    await handler(normalizedRequest, res);
+  }
+
+  return createServer((req, res) => {
+    void handleRequest(req, res).catch(error => {
+      if (res.headersSent) {
+        res.destroy(error instanceof Error ? error : undefined);
+        return;
+      }
+      res.statusCode = 500;
+      res.setHeader('content-type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify({ error: 'internal_server_error' }));
+    });
   });
 }
 

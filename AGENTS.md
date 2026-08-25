@@ -2,7 +2,13 @@
 
 This repository is an MCP server framework/runtime, not an agent harness.
 
-## Read first
+## Fast path for adding an MCP server
+
+If the task is to add or modify a server under `servers/*`, start with `docs/guides/llm-create-server.md` and `servers/example`. Begin implementation from those patterns; do not read the entire runtime first.
+
+If a framework behavior is unclear, inspect the public types in `packages/mcp-kit` and existing tests before changing runtime/protocol code.
+
+## Read first for framework/platform changes
 
 1. `docs/architecture/overview.md`
 2. `docs/standards/tool-design.md`

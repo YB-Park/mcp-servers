@@ -11,12 +11,14 @@ RUN pnpm build
 FROM node:24-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
-RUN corepack enable
+ENV MCP_AUTH_STORE=/data/auth-keys.json
+RUN corepack enable && mkdir -p /data && chown node:node /data
 COPY --from=build /app/package.json /app/pnpm-workspace.yaml /app/pnpm-lock.yaml ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/servers ./servers
 COPY --from=build /app/apps ./apps
+VOLUME ["/data"]
 EXPOSE 3000
 USER node
 CMD ["node", "apps/host/dist/index.js"]

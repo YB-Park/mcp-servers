@@ -1,8 +1,19 @@
 {
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "company-mcp-key",
+      "description": "Company MCP API key",
+      "password": true
+    }
+  ],
   "servers": {
     "company-example": {
       "type": "http",
-      "url": "http://127.0.0.1:3000/mcp/example"
+      "url": "http://mcp-server.company.local:3000/mcp/example",
+      "headers": {
+        "Authorization": "Bearer ${input:company-mcp-key}"
+      }
     }
   }
 }

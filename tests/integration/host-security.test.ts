@@ -8,6 +8,12 @@ interface RawResponse {
   body: string;
 }
 
+const rejectingVerifier = {
+  async verify() {
+    return undefined;
+  },
+};
+
 async function requestWithHeaders(url: URL, headers: Record<string, string>): Promise<RawResponse> {
   return await new Promise<RawResponse>((resolve, reject) => {
     const request = httpRequest(url, { method: 'GET', headers }, response => {
@@ -31,6 +37,22 @@ describe('HTTP host security defaults', () => {
       servers: [exampleServer],
       bindHost: '0.0.0.0',
     })).toThrow(/allowedHosts is required/);
+  });
+
+  it('refuses unauthenticated non-loopback hosting without an explicit dangerous override', () => {
+    expect(() => createMcpHost({
+      servers: [exampleServer],
+      bindHost: '0.0.0.0',
+      allowedHosts: ['127.0.0.1'],
+      auth: { mode: 'none' },
+    })).toThrow(/Authentication is required on non-loopback MCP hosts/);
+
+    expect(() => createMcpHost({
+      servers: [exampleServer],
+      bindHost: '0.0.0.0',
+      allowedHosts: ['127.0.0.1'],
+      auth: { mode: 'none', allowInsecureNoAuth: true },
+    })).not.toThrow();
   });
 
   it('rejects an untrusted Host header on a loopback listener', async () => {
@@ -61,11 +83,12 @@ describe('HTTP host security defaults', () => {
     }
   });
 
-  it('rejects all browser Origins by default on non-loopback bindings while preserving non-browser clients', async () => {
+  it('rejects all browser Origins by default on non-loopback bindings while preserving non-browser health probes', async () => {
     const running = await startMcpHost({
       servers: [exampleServer],
       bindHost: '0.0.0.0',
       allowedHosts: ['127.0.0.1'],
+      auth: { mode: 'api-key', verifier: rejectingVerifier },
       port: 0,
     });
     try {

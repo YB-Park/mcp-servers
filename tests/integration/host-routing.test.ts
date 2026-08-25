@@ -43,13 +43,7 @@ describe('central host routing and isolation', () => {
       try {
         const health = await fetch(`${running.baseUrl}/health`);
         expect(health.status).toBe(200);
-        const body = await health.json() as {
-          servers: Array<{ id: string; endpoint: string }>;
-        };
-        expect(body.servers).toEqual(expect.arrayContaining([
-          expect.objectContaining({ id: 'example', endpoint: '/mcp/example' }),
-          expect.objectContaining({ id: 'isolation', endpoint: '/mcp/isolation' }),
-        ]));
+        expect(await health.json()).toEqual({ status: 'ok' });
 
         await withMcpHttpTestClient(`${running.baseUrl}/mcp/example`, mode, async ({ client }) => {
           const names = (await client.listTools()).tools.map(tool => tool.name);

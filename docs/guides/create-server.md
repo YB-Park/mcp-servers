@@ -1,5 +1,7 @@
 # Create a Server Module
 
+For a coding LLM or a developer who just wants to start immediately, use [`llm-create-server.md`](./llm-create-server.md) first. This page explains the details behind that short workflow.
+
 Use `servers/example` as the reference implementation.
 
 1. Create `servers/<id>` with a workspace `package.json` and TypeScript project.
@@ -97,6 +99,12 @@ Do not test structured output with a truthy check: `0`, `false`, `null`, and `""
 The easy path remains `{ text: '...' }`, but `mcp-kit` must not force advanced capabilities to import the official SDK. When the use case needs it, Tool results can include text, image, audio, embedded-resource, and resource-link blocks; Resources can return text, binary blobs, or multiple contents; Prompts can return multimodal messages.
 
 Use rich content only when it improves the user/agent experience. Do not turn every textual business result into a custom multimodal structure simply because the framework supports one.
+
+## Authentication and identity
+
+Server modules do not parse Bearer tokens or Authorization headers. The Host authenticates the request and exposes only sanitized identity metadata through `ExecutionContext`.
+
+Use `ctx.identity` only when business behavior actually depends on the authenticated subject/scopes. Never log or return raw credentials. See [`authentication.md`](./authentication.md) for the managed API-key boundary.
 
 ## Testing the new module
 
