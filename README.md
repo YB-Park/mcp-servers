@@ -131,7 +131,9 @@ Non-browser MCP clients such as VS Code Desktop normally omit `Origin`. Browser 
 
 Create a module under `servers/<id>`, define it through `@mcp-platform/mcp-kit`, and register it explicitly in `apps/host/src/registry.ts`. The stable endpoint becomes `/mcp/<id>`.
 
-Start with [`docs/guides/create-server.md`](docs/guides/create-server.md) and copy patterns from [`servers/example`](servers/example). Server modules should not import `@modelcontextprotocol/*` directly.
+**Coding LLM / fastest path:** start with [`docs/guides/llm-create-server.md`](docs/guides/llm-create-server.md) and copy [`servers/example`](servers/example). The quick guide lists the exact files to create/register/test and tells the agent where to look instead of guessing.
+
+For detailed API behavior and design guidance, see [`docs/guides/create-server.md`](docs/guides/create-server.md) and [`docs/standards/tool-design.md`](docs/standards/tool-design.md). Server modules should not import `@modelcontextprotocol/*` directly.
 
 ## Goals
 
