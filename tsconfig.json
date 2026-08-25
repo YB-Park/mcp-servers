@@ -1,6 +1,7 @@
 {
   "files": [],
   "references": [
+    { "path": "./packages/auth" },
     { "path": "./packages/mcp-kit" },
     { "path": "./packages/runtime" },
     { "path": "./packages/testing" },
