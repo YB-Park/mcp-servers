@@ -2,14 +2,16 @@ import { withMcpTestClient } from '@mcp-platform/testing';
 import { exampleServer } from '@mcp-server/example';
 import { describe, expect, it } from 'vitest';
 
-const VSCODE_MAX_ENABLED_TOOLS_PER_REQUEST = 128;
+// VS Code can virtualize larger catalogs, but a single reference MCP should remain
+// comfortably within the directly enabled tool budget for clear selection UX.
+const VSCODE_DIRECT_TOOL_BUDGET = 128;
 
 describe('VS Code-facing MCP surface', () => {
   it('publishes discovery metadata that is usable by the VS Code tool picker and agent', async () => {
     await withMcpTestClient(exampleServer, 'modern', async ({ client }) => {
       const { tools } = await client.listTools();
       expect(tools.length).toBeGreaterThan(0);
-      expect(tools.length).toBeLessThanOrEqual(VSCODE_MAX_ENABLED_TOOLS_PER_REQUEST);
+      expect(tools.length).toBeLessThanOrEqual(VSCODE_DIRECT_TOOL_BUDGET);
 
       for (const tool of tools) {
         expect(tool.name.trim()).not.toBe('');
