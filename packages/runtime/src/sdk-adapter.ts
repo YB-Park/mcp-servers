@@ -5,6 +5,9 @@ import type {
   ExecutionContext,
   IdentityContext,
   PromptContent,
+  PromptDefinition,
+  PromptDefinitionWithArgs,
+  PromptRenderResult,
   ResourceContent,
   ServerDefinition,
   ToolContent,
@@ -141,6 +144,20 @@ function promptContent(content: PromptContent) {
   }
 }
 
+function promptMessages(rendered: PromptRenderResult) {
+  return 'messages' in rendered
+    ? rendered.messages.map(message => ({
+        role: message.role,
+        content: promptContent(message.content),
+      }))
+    : [
+        {
+          role: 'user' as const,
+          content: { type: 'text' as const, text: rendered.text },
+        },
+      ];
+}
+
 function resourceContent(content: ResourceContent, fallbackMimeType?: string) {
   return 'text' in content
     ? {
@@ -155,6 +172,10 @@ function resourceContent(content: ResourceContent, fallbackMimeType?: string) {
         ...(content.mimeType ?? fallbackMimeType ? { mimeType: content.mimeType ?? fallbackMimeType } : {}),
         ...(content.meta ? { _meta: { ...content.meta } } : {}),
       };
+}
+
+function promptHasArgs(prompt: PromptDefinition): prompt is PromptDefinitionWithArgs {
+  return prompt.argsSchema !== undefined;
 }
 
 export function createSdkServer(
@@ -251,30 +272,31 @@ export function createSdkServer(
   }
 
   for (const prompt of definition.prompts) {
-    server.registerPrompt(
-      prompt.name,
-      {
-        title: prompt.title,
-        description: prompt.description,
-        argsSchema: prompt.argsSchema,
-      },
-      async args => {
-        const rendered = await prompt.render(args as Record<string, unknown>, context);
-        const messages = 'messages' in rendered
-          ? rendered.messages.map(message => ({
-              role: message.role,
-              content: promptContent(message.content),
-            }))
-          : [
-              {
-                role: 'user' as const,
-                content: { type: 'text' as const, text: rendered.text },
-              },
-            ];
+    const config = {
+      title: prompt.title,
+      description: prompt.description,
+    };
 
-        return { messages };
-      },
-    );
+    if (promptHasArgs(prompt)) {
+      server.registerPrompt(
+        prompt.name,
+        {
+          ...config,
+          argsSchema: prompt.argsSchema,
+        },
+        async args => ({
+          messages: promptMessages(await prompt.render(args as Record<string, unknown>, context)),
+        }),
+      );
+    } else {
+      server.registerPrompt(
+        prompt.name,
+        config,
+        async () => ({
+          messages: promptMessages(await prompt.render(context)),
+        }),
+      );
+    }
   }
 
   return server;
