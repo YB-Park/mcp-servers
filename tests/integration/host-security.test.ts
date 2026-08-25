@@ -60,4 +60,25 @@ describe('HTTP host security defaults', () => {
       await running.close();
     }
   });
+
+  it('rejects all browser Origins by default on non-loopback bindings while preserving non-browser clients', async () => {
+    const running = await startMcpHost({
+      servers: [exampleServer],
+      bindHost: '0.0.0.0',
+      allowedHosts: ['127.0.0.1'],
+      port: 0,
+    });
+    try {
+      const normal = await fetch(`${running.baseUrl}/health`);
+      expect(normal.status).toBe(200);
+
+      const rejected = await requestWithHeaders(new URL(`${running.baseUrl}/health`), {
+        Host: `127.0.0.1:${running.port}`,
+        Origin: 'https://browser.example',
+      });
+      expect(rejected.statusCode).toBe(403);
+    } finally {
+      await running.close();
+    }
+  });
 });
