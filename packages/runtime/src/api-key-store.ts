@@ -7,6 +7,7 @@ const TOKEN_PREFIX = 'mcpk';
 const KEY_ID_PATTERN = /^[0-9a-f]{16}$/;
 const TOKEN_PATTERN = /^mcpk_([0-9a-f]{16})_([A-Za-z0-9_-]{43})$/;
 const DEFAULT_SCOPES = ['mcp'] as const;
+const MAX_KEY_ID_ATTEMPTS = 16;
 
 export interface ApiKeyMetadata {
   id: string;
@@ -231,6 +232,10 @@ export class FileApiKeyStore {
       if (previous.revokedAt) throw new ApiKeyStoreError(`API key is already revoked: ${id}`);
 
       const now = new Date();
+      if (previous.expiresAt && Date.parse(previous.expiresAt) <= now.getTime()) {
+        throw new ApiKeyStoreError(`API key is expired and cannot be rotated: ${id}`);
+      }
+
       const issued = this.issue(document, {
         label: previous.label,
         ...(previous.subject ? { subject: previous.subject } : {}),
@@ -250,7 +255,19 @@ export class FileApiKeyStore {
   }
 
   private issue(document: StoreDocument, input: CreateApiKeyInput, now: Date): IssuedApiKey {
-    const { id, token } = secureToken();
+    let generated: { id: string; token: string } | undefined;
+    for (let attempt = 0; attempt < MAX_KEY_ID_ATTEMPTS; attempt += 1) {
+      const candidate = secureToken();
+      if (!document.keys.some(key => key.id === candidate.id)) {
+        generated = candidate;
+        break;
+      }
+    }
+    if (!generated) {
+      throw new ApiKeyStoreError('Failed to allocate a unique API key id');
+    }
+
+    const { id, token } = generated;
     const scopes = normalizeList(input.scopes) ?? [...DEFAULT_SCOPES];
     const serverIds = normalizeList(input.serverIds);
     const stored: StoredApiKey = {
