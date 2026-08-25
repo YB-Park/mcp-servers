@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+conformance-results/
 *.tsbuildinfo
 .env
 .env.*
